@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">FaceDetection</string>
+    <string name="add_face_data">添加人脸数据</string>
+    <string name="face_recognition">人脸识别</string>
+    <string name="active_success">激活成功</string>
+    <string name="already_activated">已经激活</string>
+    <string name="active_failed">引擎激活失败，错误码为 %d</string>
 </resources>

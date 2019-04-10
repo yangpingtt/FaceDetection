@@ -1,9 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".RegisterActivity">
+    tools:context=".Activity.RegisterActivity">
 
-</android.support.constraint.ConstraintLayout>
+    <RelativeLayout
+        android:id="@+id/login_register"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:padding="15dip"
+        android:layout_margin="15dip"
+        android:background="#93ffffff" >
+        <!-- 账号 -->
+
+        <TextView
+            android:id="@+id/username"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_marginTop="5dp"
+            android:text="用户名" />
+
+        <EditText
+            android:id="@+id/et_username"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="学号"
+            android:layout_below="@id/username"
+            android:singleLine="true"
+            android:inputType="text"/>
+
+        <!-- 年龄 text -->
+        <TextView
+            android:id="@+id/age"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/et_username"
+            android:layout_marginTop="3dp"
+            android:text="年     龄"/>
+
+        <EditText
+            android:id="@+id/et_age"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/age"
+            android:singleLine="true"
+            android:inputType="text" />
+
+
+        <!-- 性别 text -->
+
+        <TextView
+            android:id="@+id/sex"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/et_age"
+            android:layout_marginTop="3dp"
+            android:text="性    别"/>
+
+        <EditText
+            android:id="@+id/et_sex"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/sex"
+            android:singleLine="true"
+            android:inputType="text" />
+
+        <!-- 邮箱 text -->
+
+        <TextView
+            android:id="@+id/mail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/et_sex"
+            android:layout_marginTop="3dp"
+            android:text="邮    箱"/>
+
+        <EditText
+            android:id="@+id/et_mail"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/mail"
+            android:singleLine="true"
+            android:inputType="text" />
+
+        <!-- 密码 text -->
+
+        <TextView
+            android:id="@+id/password"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/et_mail"
+            android:layout_marginTop="3dp"
+            android:text="密     码"/>
+
+        <EditText
+            android:id="@+id/et_password"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/password"
+            android:password="true"
+            android:singleLine="true"
+            android:inputType="textPassword" />
+
+        <!-- 确认密码 text -->
+
+        <TextView
+            android:id="@+id/password_again"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/et_password"
+            android:layout_marginTop="3dp"
+            android:text="确认密码"/>
+
+        <EditText
+            android:id="@+id/et_password_again"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/password_again"
+            android:password="true"
+            android:singleLine="true"
+            android:inputType="textPassword" />
+
+        <!-- 注册button -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:id="@+id/warnText"
+            android:layout_below="@id/et_password_again"
+            android:textSize="5sp"
+            android:textColor="#ff0000" />
+
+
+
+        <Button
+            android:id="@+id/register_button"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/warnText"
+            android:layout_alignRight="@id/password"
+            android:text="注 册"
+            android:background="#4FC1FB"
+            android:layout_alignLeft="@+id/password"
+            android:layout_alignStart="@+id/password"
+            android:textColor="#ffffff"
+            android:textSize="20dp" />
+
+    </RelativeLayout>
+
+
+
+    <!--<RelativeLayout-->
+        <!--android:layout_width="fill_parent"-->
+        <!--android:layout_height="wrap_content" >-->
+        <!--<TextView  android:id="@+id/register_text"-->
+            <!--android:text="登  录"-->
+            <!--android:layout_width="wrap_content"-->
+            <!--android:layout_height="wrap_content"-->
+            <!--android:textColor="#EEB423"-->
+            <!--android:textColorLink="#FF0066CC"-->
+            <!--android:textSize="18dp"-->
+            <!--android:layout_alignParentTop="true"-->
+            <!--android:layout_alignParentRight="true"-->
+            <!--android:layout_alignParentEnd="true"-->
+            <!--android:layout_marginRight="27dp"-->
+            <!--android:layout_marginEnd="27dp" />-->
+
+    <!--</RelativeLayout>-->
+
+</LinearLayout>
