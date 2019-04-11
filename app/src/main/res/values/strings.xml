@@ -5,4 +5,8 @@
     <string name="active_success">激活成功</string>
     <string name="already_activated">已经激活</string>
     <string name="active_failed">引擎激活失败，错误码为 %d</string>
+    <string name="add_local_picture">添加本地照片</string>
+    <string name="register_face">注册人脸照片</string>
+    <string name="hint_in_add_face_dat">请让人脸进入人脸框内</string>
+    <string name="init_failed">引擎初始化失败，错误码为 %d</string>
 </resources>

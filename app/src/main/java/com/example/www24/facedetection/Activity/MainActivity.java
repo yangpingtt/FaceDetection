@@ -1,6 +1,7 @@
 package com.example.www24.facedetection.Activity;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
@@ -117,9 +118,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (v.getId()){
             case R.id.add_face_data:
                 //添加人脸数据
+                startActivity(new Intent(MainActivity.this,AddFaceActivity.class));
             case R.id.face_recognition:
                 //人脸识别
-
+                startActivity(new Intent(MainActivity.this,Recognition.class));
         }
     }
 }
