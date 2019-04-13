@@ -6,8 +6,8 @@ import android.graphics.Path;
 import android.graphics.Rect;
 import android.hardware.Camera;
 
-import com.arcsoft.arcfacedemo.model.DrawInfo;
-import com.arcsoft.arcfacedemo.widget.FaceRectView;
+import com.example.www24.facedetection.Model.DrawInfo;
+import com.example.www24.facedetection.widget.FaceRectView;
 import com.arcsoft.face.AgeInfo;
 import com.arcsoft.face.GenderInfo;
 import com.arcsoft.face.LivenessInfo;

@@ -18,6 +18,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.Toast;
 
 import com.arcsoft.face.AgeInfo;
@@ -44,11 +45,11 @@ import com.example.www24.facedetection.widget.ShowFaceInfoAdapter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -56,8 +57,8 @@ import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
-public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserver.OnGlobalLayoutListener {
-    private static final String TAG = "Add_Face_Activity";
+public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserver.OnGlobalLayoutListener, View.OnClickListener {
+    private static final String TAG = "Add_Face_ActivityLog";
     private static final int MAX_DETECT_NUM = 5;
     private View previewView;
 
@@ -76,11 +77,28 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     //人脸比对结果参数
     private List<CompareResult> compareResultList;
     private ShowFaceInfoAdapter adapter;
+    /**
+     * 注册人脸状态码，准备注册
+     */
+    private static final int REGISTER_STATUS_READY = 0;
+    /**
+     * 注册人脸状态码，注册中
+     */
+    private static final int REGISTER_STATUS_PROCESSING = 1;
+    /**
+     * 注册人脸状态码，注册结束（无论成功失败）
+     */
+    private static final int REGISTER_STATUS_DONE = 2;
+
+    private int registerStatus = REGISTER_STATUS_DONE;
 
     private int afCode = -1;
     private ConcurrentHashMap<Integer, Integer> requestFeatureStatusMap = new ConcurrentHashMap<>();
     private ConcurrentHashMap<Integer, Integer> livenessMap = new ConcurrentHashMap<>();
     private CompositeDisposable getFeatureDelayedDisposables = new CompositeDisposable();
+
+    //打开摄像头
+    private Integer cameraID = Camera.CameraInfo.CAMERA_FACING_FRONT;
 
     /**
      * 所需的所有权限信息
@@ -93,11 +111,13 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     private static final int ACTION_REQUEST_PERMISSIONS = 0x001;
     private static final float SIMILAR_THRESHOLD = 0.8F;
     private FaceEngine faceEngine;
+    private FaceRectView faceRectView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_face);
+        Log.v(TAG,"进入添加人脸activity");
         //保持亮屏
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
@@ -110,7 +130,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         //在布局结束后才做初始化操作
         previewView.getViewTreeObserver().addOnGlobalLayoutListener(this);
 
-        FaceRectView faceRectView = findViewById(R.id.face_rect_view);
+        faceRectView = findViewById(R.id.face_rect_view);
 //        switchLivenessDetect = findViewById(R.id.switch_liveness_detect);
 //        switchLivenessDetect.setChecked(livenessDetect);
 //        switchLivenessDetect.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -127,6 +147,9 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         int spanCount = (int) (dm.widthPixels / (getResources().getDisplayMetrics().density * 100 + 0.5f));
         recyclerShowFaceInfo.setLayoutManager(new GridLayoutManager(this, spanCount));
         recyclerShowFaceInfo.setItemAnimator(new DefaultItemAnimator());
+
+        Button button = findViewById(R.id.register_face);
+        button.setOnClickListener(this);
     }
 
 
@@ -135,9 +158,12 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
      */
     @Override
     public void onGlobalLayout() {
+        Log.v(TAG,"第一次布局");
         previewView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
         if(!checkPermissions(NEEDED_PERMISSIONS)){
+            Log.v(TAG,"获取权限失败，准备动态获取权限");
             ActivityCompat.requestPermissions(this,NEEDED_PERMISSIONS, ACTION_REQUEST_PERMISSIONS);
+            Log.v(TAG,"动态获取权限");
         }else {
             initEngine();
             initCamera();
@@ -145,6 +171,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     }
 
     private void initCamera() {
+        Log.v(TAG,"初始化相机");
         DisplayMetrics metrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(metrics);
 
@@ -172,7 +199,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                     //活体检测未出结果，延迟100ms再执行该函数
                     else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.UNKNOWN) {
                         getFeatureDelayedDisposables.add(Observable.timer(WAIT_LIVENESS_INTERVAL, TimeUnit.MILLISECONDS)
-                                .subscribe(aLong -> onFaceFeatureInfoGet(faceFeature, requestId));
+                                .subscribe(aLong -> onFaceFeatureInfoGet(faceFeature, requestId)));
                     }
                     //活体检测失败
                     else {
@@ -223,12 +250,9 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                 }
                 if (registerStatus == REGISTER_STATUS_READY && facePreviewInfoList != null && facePreviewInfoList.size() > 0) {
                     registerStatus = REGISTER_STATUS_PROCESSING;
-                    Observable.create(new ObservableOnSubscribe<Boolean>() {
-                        @Override
-                        public void subscribe(ObservableEmitter<Boolean> emitter) {
-                            boolean success = FaceServer.getInstance().register(RegisterAndRecognizeActivity.this, nv21.clone(), previewSize.width, previewSize.height, "registered " + faceHelper.getCurrentTrackId());
-                            emitter.onNext(success);
-                        }
+                    Observable.create((ObservableOnSubscribe<Boolean>) emitter -> {
+                        boolean success = FaceServer.getInstance().register(AddFaceActivity.this, nv21.clone(), previewSize.width, previewSize.height, "registered " + faceHelper.getCurrentTrackId());
+                        emitter.onNext(success);
                     })
                             .subscribeOn(Schedulers.computation())
                             .observeOn(AndroidSchedulers.mainThread())
@@ -241,13 +265,13 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                 @Override
                                 public void onNext(Boolean success) {
                                     String result = success ? "register success!" : "register failed!";
-                                    Toast.makeText(RegisterAndRecognizeActivity.this, result, Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(AddFaceActivity.this, result, Toast.LENGTH_SHORT).show();
                                     registerStatus = REGISTER_STATUS_DONE;
                                 }
 
                                 @Override
                                 public void onError(Throwable e) {
-                                    Toast.makeText(RegisterAndRecognizeActivity.this, "register failed!", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(AddFaceActivity.this, "register failed!", Toast.LENGTH_SHORT).show();
                                     registerStatus = REGISTER_STATUS_DONE;
                                 }
 
@@ -315,6 +339,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
      * 初始化引擎
      */
     private void initEngine() {
+        Log.v(TAG,"初始化引擎");
         faceEngine = new FaceEngine();
         afCode = faceEngine.init(this, FaceEngine.ASF_DETECT_MODE_VIDEO, ConfigUtil.getFtOrient(this),
                 16, MAX_DETECT_NUM, FaceEngine.ASF_FACE_RECOGNITION | FaceEngine.ASF_FACE_DETECT | FaceEngine.ASF_LIVENESS);
@@ -329,8 +354,6 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
 
     /**
      * 销毁引擎
-     * @param neededPermissions
-     * @return
      */
     private void unInitEngine() {
 
@@ -340,8 +363,126 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         }
     }
 
-    private void searchFace(FaceFeature faceFeature, Integer requestId) {
+    private void searchFace(final FaceFeature faceFeature, final Integer requestId) {
+        Observable
+                .create((ObservableOnSubscribe<CompareResult>) emitter -> {
+//                        Log.i(TAG, "subscribe: fr search start = " + System.currentTimeMillis() + " trackId = " + requestId);
+                    CompareResult compareResult = FaceServer.getInstance().getTopOfFaceLib(faceFeature);
+//                        Log.i(TAG, "subscribe: fr search end = " + System.currentTimeMillis() + " trackId = " + requestId);
+                    if (compareResult == null) {
+                        emitter.onError(null);
+                    } else {
+                        emitter.onNext(compareResult);
+                    }
+                })
+                .subscribeOn(Schedulers.computation())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<CompareResult>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
 
+                    }
+
+                    @Override
+                    public void onNext(CompareResult compareResult) {
+                        if (compareResult == null || compareResult.getUserName() == null) {
+                            requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
+                            faceHelper.addName(requestId, "VISITOR " + requestId);
+                            return;
+                        }
+
+//                        Log.i(TAG, "onNext: fr search get result  = " + System.currentTimeMillis() + " trackId = " + requestId + "  similar = " + compareResult.getSimilar());
+                        if (compareResult.getSimilar() > SIMILAR_THRESHOLD) {
+                            boolean isAdded = false;
+                            if (compareResultList == null) {
+                                requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
+                                faceHelper.addName(requestId, "VISITOR " + requestId);
+                                return;
+                            }
+                            for (CompareResult compareResult1 : compareResultList) {
+                                if (compareResult1.getTrackId() == requestId) {
+                                    isAdded = true;
+                                    break;
+                                }
+                            }
+                            if (!isAdded) {
+                                //对于多人脸搜索，假如最大显示数量为 MAX_DETECT_NUM 且有新的人脸进入，则以队列的形式移除
+                                if (compareResultList.size() >= MAX_DETECT_NUM) {
+                                    compareResultList.remove(0);
+                                    adapter.notifyItemRemoved(0);
+                                }
+                                //添加显示人员时，保存其trackId
+                                compareResult.setTrackId(requestId);
+                                compareResultList.add(compareResult);
+                                adapter.notifyItemInserted(compareResultList.size() - 1);
+                            }
+                            requestFeatureStatusMap.put(requestId, RequestFeatureStatus.SUCCEED);
+                            faceHelper.addName(requestId, compareResult.getUserName());
+
+                        } else {
+                            requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
+                            faceHelper.addName(requestId, "VISITOR " + requestId);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
+
+    }
+
+    /**
+     * 删除已经离开的人脸
+     *
+     * @param facePreviewInfoList 人脸和trackId列表
+     */
+    private void clearLeftFace(List<FacePreviewInfo> facePreviewInfoList) {
+        Set<Integer> keySet = requestFeatureStatusMap.keySet();
+        if (compareResultList != null) {
+            for (int i = compareResultList.size() - 1; i >= 0; i--) {
+                if (!keySet.contains(compareResultList.get(i).getTrackId())) {
+                    compareResultList.remove(i);
+                    adapter.notifyItemRemoved(i);
+                }
+            }
+        }
+        if (facePreviewInfoList == null || facePreviewInfoList.size() == 0) {
+            requestFeatureStatusMap.clear();
+            livenessMap.clear();
+            return;
+        }
+
+        for (Integer integer : keySet) {
+            boolean contained = false;
+            for (FacePreviewInfo facePreviewInfo : facePreviewInfoList) {
+                if (facePreviewInfo.getTrackId() == integer) {
+                    contained = true;
+                    break;
+                }
+            }
+            if (!contained) {
+                requestFeatureStatusMap.remove(integer);
+                livenessMap.remove(integer);
+            }
+        }
+
+    }
+
+    /**
+     * 将准备注册的状态置为{@link #REGISTER_STATUS_READY}
+     *
+     */
+    public void register() {
+        if (registerStatus == REGISTER_STATUS_DONE) {
+            registerStatus = REGISTER_STATUS_READY;
+        }
     }
 
     private boolean checkPermissions(String[] neededPermissions) {
@@ -353,5 +494,13 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
             allGranted &= ContextCompat.checkSelfPermission(this, neededPermission) == PackageManager.PERMISSION_GRANTED;
         }
         return allGranted;
+    }
+
+    @Override
+    public void onClick(View v) {
+        switch(v.getId()){
+            case R.id.register_face:
+                register();
+        }
     }
 }

@@ -8,7 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.arcsoft.arcfacedemo.R;
+import com.example.www24.facedetection.R;
 
 public class ProgressDialog extends AlertDialog {
     private ProgressBar progressBar;

@@ -17,13 +17,13 @@ import java.util.List;
 
 public class ShowInfoAdapter extends RecyclerView.Adapter<ShowInfoAdapter.ShowInfoHolder> {
 
-    private List<ItemShowInfo> showInfoList;
-    private LayoutInflater inflater;
+        private List<ItemShowInfo> showInfoList;
+        private LayoutInflater inflater;
 
-    public ShowInfoAdapter(List<ItemShowInfo> showInfoList, Context context) {
-        this.showInfoList = showInfoList;
-        this.inflater = LayoutInflater.from(context);
-    }
+        public ShowInfoAdapter(List<ItemShowInfo> showInfoList, Context context) {
+            this.showInfoList = showInfoList;
+            this.inflater = LayoutInflater.from(context);
+        }
 
     @NonNull
     @Override

@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <com.arcsoft.arcfacedemo.widget.FaceRectView
+        <com.example.www24.facedetection.widget.FaceRectView
             android:id="@+id/face_rect_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
