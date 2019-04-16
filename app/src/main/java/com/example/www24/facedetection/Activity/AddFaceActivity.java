@@ -6,6 +6,9 @@ import android.content.pm.PackageManager;
 import android.graphics.Point;
 import android.hardware.Camera;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -30,6 +33,7 @@ import com.arcsoft.face.LivenessInfo;
 import com.arcsoft.face.VersionInfo;
 import com.example.www24.facedetection.Model.DrawInfo;
 import com.example.www24.facedetection.Model.FacePreviewInfo;
+import com.example.www24.facedetection.MyApplication;
 import com.example.www24.facedetection.R;
 import com.example.www24.facedetection.faceserver.CompareResult;
 import com.example.www24.facedetection.faceserver.FaceServer;
@@ -60,6 +64,8 @@ import io.reactivex.schedulers.Schedulers;
 public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserver.OnGlobalLayoutListener, View.OnClickListener {
     private static final String TAG = "Add_Face_ActivityLog";
     private static final int MAX_DETECT_NUM = 5;
+
+    private Toast toast = null;
     private View previewView;
 
     /**
@@ -113,6 +119,24 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     private FaceEngine faceEngine;
     private FaceRectView faceRectView;
 
+    public static final int FAIL = 1;
+    public static final int SUCCESS = 2;
+
+    private static Handler myhandle = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            switch(msg.what){
+                case FAIL:
+                    Toast.makeText(MyApplication.getContext(),"活体检测失败",Toast.LENGTH_SHORT).show();
+                    break;
+                case SUCCESS:
+                    Toast.makeText(MyApplication.getContext(),"活体检测成功",Toast.LENGTH_SHORT).show();
+                    break;
+            }
+
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -131,22 +155,22 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         previewView.getViewTreeObserver().addOnGlobalLayoutListener(this);
 
         faceRectView = findViewById(R.id.face_rect_view);
-//        switchLivenessDetect = findViewById(R.id.switch_liveness_detect);
-//        switchLivenessDetect.setChecked(livenessDetect);
-//        switchLivenessDetect.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-//            @Override
-//            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-//                livenessDetect = isChecked;
-//            }
-//        });
+
         RecyclerView recyclerShowFaceInfo = findViewById(R.id.recycler_view_person);
-        compareResultList = new ArrayList<>();
-        adapter = new ShowFaceInfoAdapter(compareResultList,this);
-        recyclerShowFaceInfo.setAdapter(adapter);
         DisplayMetrics dm = getResources().getDisplayMetrics();
         int spanCount = (int) (dm.widthPixels / (getResources().getDisplayMetrics().density * 100 + 0.5f));
-        recyclerShowFaceInfo.setLayoutManager(new GridLayoutManager(this, spanCount));
+        recyclerShowFaceInfo.setLayoutManager(new GridLayoutManager(AddFaceActivity.this, spanCount));
         recyclerShowFaceInfo.setItemAnimator(new DefaultItemAnimator());
+        compareResultList = new ArrayList<>();
+        adapter = new ShowFaceInfoAdapter(compareResultList,this);
+        if(adapter==null){
+            Log.v(TAG,"adapter为空");
+        }
+        recyclerShowFaceInfo.setAdapter(adapter);
+
+
+
+
 
         Button button = findViewById(R.id.register_face);
         button.setOnClickListener(this);
@@ -194,6 +218,10 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                     }
                     //活体检测通过，搜索特征
                     else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
+                        //Toast.makeText(AddFaceActivity.this, "活体检测通过", Toast.LENGTH_SHORT).show();
+                        Message msg =new Message();
+                        msg.what = SUCCESS;
+                        myhandle.sendMessage(msg);
                         searchFace(faceFeature, requestId);
                     }
                     //活体检测未出结果，延迟100ms再执行该函数
@@ -203,6 +231,9 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                     }
                     //活体检测失败
                     else {
+                        Message msg =new Message();
+                        msg.what = FAIL;
+                        myhandle.sendMessage(msg);
                         requestFeatureStatusMap.put(requestId, RequestFeatureStatus.NOT_ALIVE);
                     }
 
@@ -235,6 +266,8 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
 
             @Override
             public void onPreview(final byte[] nv21, Camera camera) {
+
+                Log.v(TAG,"进入预览");
                 if (faceRectView != null) {
                     faceRectView.clearFaceInfo();
                 }
@@ -364,6 +397,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     }
 
     private void searchFace(final FaceFeature faceFeature, final Integer requestId) {
+        Log.v(TAG,"进入searchFace");
         Observable
                 .create((ObservableOnSubscribe<CompareResult>) emitter -> {
 //                        Log.i(TAG, "subscribe: fr search start = " + System.currentTimeMillis() + " trackId = " + requestId);
@@ -393,6 +427,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
 
 //                        Log.i(TAG, "onNext: fr search get result  = " + System.currentTimeMillis() + " trackId = " + requestId + "  similar = " + compareResult.getSimilar());
                         if (compareResult.getSimilar() > SIMILAR_THRESHOLD) {
+                            Log.v(TAG,"查找成功");
                             boolean isAdded = false;
                             if (compareResultList == null) {
                                 requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
@@ -494,6 +529,24 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
             allGranted &= ContextCompat.checkSelfPermission(this, neededPermission) == PackageManager.PERMISSION_GRANTED;
         }
         return allGranted;
+    }
+
+    private void showToast(String s) {
+        try{
+            if (toast == null) {
+                toast = Toast.makeText(AddFaceActivity.this, s, Toast.LENGTH_SHORT);
+                toast.show();
+            } else {
+                toast.setText(s);
+                toast.show();
+            }
+        }catch (Exception e){
+            //解决在子线程中调用Toast的异常情况处理
+            Looper.prepare();
+            Toast.makeText(this, s, Toast.LENGTH_SHORT).show();
+            Looper.loop();
+        }
+
     }
 
     @Override

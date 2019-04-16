@@ -152,7 +152,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 startActivity(new Intent(MainActivity.this,AddFaceActivity.class));
             case R.id.face_recognition:
                 //人脸识别
-                //startActivity(new Intent(MainActivity.this,Recognition.class));
+                startActivity(new Intent(MainActivity.this,Recognition.class));
         }
     }
 }

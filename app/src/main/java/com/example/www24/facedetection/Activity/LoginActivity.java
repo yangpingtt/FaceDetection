@@ -1,8 +1,8 @@
 package com.example.www24.facedetection.Activity;
 
 import android.content.Intent;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -13,19 +13,21 @@ import android.widget.EditText;
 import com.example.www24.facedetection.Common.Constants;
 import com.example.www24.facedetection.Model.User;
 import com.example.www24.facedetection.R;
+import com.example.www24.facedetection.util.HttpUtil;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
+import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.Response;
 
 
 public class LoginActivity extends AppCompatActivity implements View.OnClickListener {
+    private static final String TAG = "Login_ActivityLog";
 
     private EditText et_name;
     private EditText et_password;
@@ -143,29 +145,69 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         User user =new User();
         user.setUsername(username);
         user.setPassword(password);
+        Log.v(TAG,gson.toJson(user));
 
-        OkHttpClient client = new OkHttpClient();
+        HttpUtil.sendOkHttpRequest(Constants.SEVER_URL + "testLogin", gson.toJson(user), new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.v(TAG,Constants.SEVER_URL+"testLogin");
+                Log.v(TAG,"Http请求失败");
+            }
 
-        RequestBody requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), gson.toJson(user));
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                Log.v(TAG,Constants.SEVER_URL+"testLogin");
+                Log.v(TAG,"http请求成功");
+                String requestData = response.body().string();
+                Log.v(TAG,requestData);
+                //解析从服务端接收到的数据
+                JSONObject jsonResult = null;
+                try {
+                    jsonResult = new JSONObject(requestData);
+                    String result = jsonResult.getString("result");
+                    Log.v(TAG,result);
+                    if(result.equals("1")) {
+                        //Toast.makeText(MyApplication.getContext(), "登陆成功", Toast.LENGTH_SHORT).show();
+                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+                        startActivity(intent);
+                        Log.v(TAG,"登陆成功");
+                    } else
+                    {
+                        Log.v("msg","Login");
+                        //
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
 
-        Request request = new Request.Builder()
-                .url(Constants.SEVER_URL)
-                .post(requestBody)
-                .build();
-        Response response = client.newCall(request).execute();
-        String requestData = response.body().toString();
-
-        //解析从服务端接收到的数据
-        JsonObject jsonResult = new JsonObject().getAsJsonObject(requestData);
-        String result = jsonResult.get("result").toString();
-
-        if(result.equals('1'))
-            startActivity(new Intent(LoginActivity.this,MainActivity.class));
-        else
-        {
-            Log.v("msg","Login");
-            //
-        }
+//        HttpUtil.sendHttpRequest("http://123.206.17.25:5000/testLogin", gson.toJson(user), new HttpCallbackListen() {
+//            @Override
+//            public void onFinish(String response) {
+//                Log.v(TAG,Constants.SEVER_URL+"testLogin");
+//                Log.v(TAG,"http请求成功");
+//                String requestData = response;
+//                Log.v(TAG,requestData);
+//                //解析从服务端接收到的数据
+//                JsonObject jsonResult = new JsonObject().getAsJsonObject(requestData);
+//                String result = jsonResult.get("result").toString();
+//
+//                if(result.equals('1')) {
+//                    Toast.makeText(MyApplication.getContext(), "登陆成功", Toast.LENGTH_SHORT);
+//                    startActivity(new Intent(LoginActivity.this, MainActivity.class));
+//                } else
+//                {
+//                    Log.v("msg","Login");
+//                    //
+//                }
+//            }
+//            @Override
+//            public void onError(Exception e) {
+//                Log.v(TAG,Constants.SEVER_URL+"testLogin");
+//                Log.v(TAG,"Http请求失败");
+//            }
+//        });
     }
 
 
