@@ -25,7 +25,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity {
     private static final String TAG="MainActivityLog";
 
     private Toast toast = null;
@@ -33,6 +33,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final String[] NEEDED_PERMISSIONS = new String[]{
             Manifest.permission.READ_PHONE_STATE
     };
+    private Button add_face_data;
+    private Button face_recognition;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,13 +42,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         setContentView(R.layout.activity_main);
 
         activeEngine();
+        findView();
+        onClick();
+    }
 
-        //Button active_engine = findViewById(R.id.active_engine);
-        Button add_face_data = findViewById(R.id.add_face_data);
-        Button face_recognition = findViewById(R.id.face_recognition);
-        //active_engine.setOnClickListener(this);
-        add_face_data.setOnClickListener(this);
-        face_recognition.setOnClickListener(this);
+    private void findView() {
+        add_face_data = findViewById(R.id.add_face_data);
+        face_recognition = findViewById(R.id.face_recognition);
+    }
+
+    private void onClick() {
+        add_face_data.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //添加人脸数据
+                Log.v("Add_Face_ActivityLog","准备进入添加人脸activity");
+                startActivity(new Intent(MainActivity.this,AddFaceActivity.class));
+            }
+        });
+        face_recognition.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //人脸识别
+                startActivity(new Intent(MainActivity.this,Recognition.class));
+            }
+        });
     }
 
 
@@ -141,18 +161,4 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    @Override
-    public void onClick(View v) {
-        switch (v.getId()){
-//            case R.id.active_engine:
-//                activeEngine();
-            case R.id.add_face_data:
-                //添加人脸数据
-                Log.v("Add_Face_ActivityLog","准备进入添加人脸activity");
-                startActivity(new Intent(MainActivity.this,AddFaceActivity.class));
-            case R.id.face_recognition:
-                //人脸识别
-                startActivity(new Intent(MainActivity.this,Recognition.class));
-        }
-    }
 }

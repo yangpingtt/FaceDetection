@@ -10,23 +10,12 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-import com.example.www24.facedetection.Common.Constants;
 import com.example.www24.facedetection.Model.User;
 import com.example.www24.facedetection.R;
-import com.example.www24.facedetection.util.HttpUtil;
 import com.google.gson.Gson;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 
-import java.io.IOException;
-
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.Response;
-
-
-public class LoginActivity extends AppCompatActivity implements View.OnClickListener {
+public class LoginActivity extends AppCompatActivity{
     private static final String TAG = "Login_ActivityLog";
 
     private EditText et_name;
@@ -52,9 +41,9 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         bt_password_eye = findViewById(R.id.bt_pwd_eyes);
         bt_password_clear = findViewById(R.id.bt_pwd_clear);
 
-        bt_username_clear.setOnClickListener(this);
-        bt_password_eye.setOnClickListener(this);
-        bt_password_clear.setOnClickListener(this);
+//        bt_username_clear.setOnClickListener(this);
+//        bt_password_eye.setOnClickListener(this);
+//        bt_password_clear.setOnClickListener(this);
         initWatcher();
         et_name.addTextChangedListener(username_watcher);
         et_password.addTextChangedListener(password_watcher);
@@ -64,9 +53,30 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         mRegister = findViewById(R.id.register);
 //        ONLYTEST.setOnClickListener(this);
 //        ONLYTEST.setOnLongClickListener((View.OnLongClickListener) this);
-        mLoginButton.setOnClickListener(this);
-        mLoginError.setOnClickListener(this);
-        mRegister.setOnClickListener(this);
+        onClick();
+    }
+
+    private void onClick() {
+        mLoginButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                login();
+            }
+        });
+
+        mRegister.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v){
+
+            }
+        });
+
+        mLoginError.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+            }
+        });
     }
 
     private void initWatcher() {
@@ -116,27 +126,10 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         };
     }
 
-    @Override
-    public void onClick(View v) {
-        switch(v.getId()){
-            case R.id.login:
-                //登陆
-                try {
-                    login();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            case R.id.register:
-                //注册
-                startActivity(new Intent(LoginActivity.this,RegisterActivity.class));
-            case R.id.forget_password:
-                //忘记密码
-                startActivity(new Intent(LoginActivity.this,ForgetPwdActivity.class));
-        }
-    }
+
 
     //登陆操作
-    private void login() throws IOException {
+    private void login() {
         String username = et_name.getText().toString();
         String password = et_password.getText().toString();
 
@@ -147,40 +140,44 @@ public class LoginActivity extends AppCompatActivity implements View.OnClickList
         user.setPassword(password);
         Log.v(TAG,gson.toJson(user));
 
-        HttpUtil.sendOkHttpRequest(Constants.SEVER_URL + "testLogin", gson.toJson(user), new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                Log.v(TAG,Constants.SEVER_URL+"testLogin");
-                Log.v(TAG,"Http请求失败");
-            }
+        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+        startActivity(intent);
+        finish();
 
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                Log.v(TAG,Constants.SEVER_URL+"testLogin");
-                Log.v(TAG,"http请求成功");
-                String requestData = response.body().string();
-                Log.v(TAG,requestData);
-                //解析从服务端接收到的数据
-                JSONObject jsonResult = null;
-                try {
-                    jsonResult = new JSONObject(requestData);
-                    String result = jsonResult.getString("result");
-                    Log.v(TAG,result);
-                    if(result.equals("1")) {
-                        //Toast.makeText(MyApplication.getContext(), "登陆成功", Toast.LENGTH_SHORT).show();
-                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                        startActivity(intent);
-                        Log.v(TAG,"登陆成功");
-                    } else
-                    {
-                        Log.v("msg","Login");
-                        //
-                    }
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+//        HttpUtil.sendOkHttpRequest(Constants.SEVER_URL + "testLogin", gson.toJson(user), new Callback() {
+//            @Override
+//            public void onFailure(Call call, IOException e) {
+//                Log.v(TAG,Constants.SEVER_URL+"testLogin");
+//                Log.v(TAG,"Http请求失败");
+//            }
+//
+//            @Override
+//            public void onResponse(Call call, Response response) throws IOException {
+//                Log.v(TAG,Constants.SEVER_URL+"testLogin");
+//                Log.v(TAG,"http请求成功");
+//                String requestData = response.body().string();
+//                Log.v(TAG,requestData);
+//                //解析从服务端接收到的数据
+//                JSONObject jsonResult = null;
+//                try {
+//                    jsonResult = new JSONObject(requestData);
+//                    String result = jsonResult.getString("result");
+//                    Log.v(TAG,result);
+//                    if(result.equals("1")) {
+//                        //Toast.makeText(MyApplication.getContext(), "登陆成功", Toast.LENGTH_SHORT).show();
+//                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+//                        startActivity(intent);
+//                        Log.v(TAG,"登陆成功");
+//                    } else
+//                    {
+//                        Log.v("msg","Login");
+//                        //
+//                    }
+//                } catch (JSONException e) {
+//                    e.printStackTrace();
+//                }
+//            }
+//        });
 
 //        HttpUtil.sendHttpRequest("http://123.206.17.25:5000/testLogin", gson.toJson(user), new HttpCallbackListen() {
 //            @Override
