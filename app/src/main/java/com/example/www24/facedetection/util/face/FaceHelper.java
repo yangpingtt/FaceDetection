@@ -4,6 +4,7 @@ import android.graphics.Rect;
 import android.hardware.Camera;
 import android.util.Log;
 
+import com.arcsoft.face.Face3DAngle;
 import com.example.www24.facedetection.Model.FacePreviewInfo;
 import com.example.www24.facedetection.util.TrackUtil;
 import com.arcsoft.face.ErrorInfo;
@@ -33,6 +34,7 @@ public class FaceHelper {
 
     private List<FaceInfo> faceInfoList = new ArrayList<>();
     private List<LivenessInfo> livenessInfoList = new ArrayList<>();
+    private List<Face3DAngle> face3DAngleList = new ArrayList<>();
     private ExecutorService executor = Executors.newSingleThreadExecutor();
     private boolean frThreadRunning = false;
     private FaceListener faceListener;
@@ -121,7 +123,7 @@ public class FaceHelper {
                 TrackUtil.keepMaxFace(faceInfoList);
 
                 refreshTrackId(faceInfoList);
-                code = faceEngine.process(nv21, previewSize.width, previewSize.height, FaceEngine.CP_PAF_NV21, faceInfoList, FaceEngine.ASF_LIVENESS);
+                code = faceEngine.process(nv21, previewSize.width, previewSize.height, FaceEngine.CP_PAF_NV21, faceInfoList, FaceEngine.ASF_LIVENESS | FaceEngine.ASF_FACE3DANGLE);
                 if (code != ErrorInfo.MOK) {
                     faceListener.onFail(new Exception("process failed,code is " + code));
                 }
@@ -129,11 +131,15 @@ public class FaceHelper {
                 if (code != ErrorInfo.MOK) {
                     faceListener.onFail(new Exception("getLiveness failed,code is " + code));
                 }
+                code = faceEngine.getFace3DAngle(face3DAngleList);
+                if (code != ErrorInfo.MOK) {
+                    faceListener.onFail(new Exception("getFace3DAngle failed,code is " + code));
+                }
             }
             facePreviewInfoList.clear();
-            if (livenessInfoList.size() == faceInfoList.size()) {
+            if (livenessInfoList.size() == faceInfoList.size() &&livenessInfoList.size() == face3DAngleList.size()) {
                 for (int i = 0; i < faceInfoList.size(); i++) {
-                    facePreviewInfoList.add(new FacePreviewInfo(faceInfoList.get(i), livenessInfoList.get(i), currentTrackIdList.get(i)));
+                    facePreviewInfoList.add(new FacePreviewInfo(faceInfoList.get(i), livenessInfoList.get(i), face3DAngleList.get(i), currentTrackIdList.get(i)));
                 }
             }
             return facePreviewInfoList;

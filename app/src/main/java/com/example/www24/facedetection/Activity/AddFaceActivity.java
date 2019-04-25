@@ -26,6 +26,7 @@ import android.widget.Toast;
 
 import com.arcsoft.face.AgeInfo;
 import com.arcsoft.face.ErrorInfo;
+import com.arcsoft.face.Face3DAngle;
 import com.arcsoft.face.FaceEngine;
 import com.arcsoft.face.FaceFeature;
 import com.arcsoft.face.GenderInfo;
@@ -101,7 +102,10 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     private int afCode = -1;
     private ConcurrentHashMap<Integer, Integer> requestFeatureStatusMap = new ConcurrentHashMap<>();
     private ConcurrentHashMap<Integer, Integer> livenessMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer, Face3DAngle> face3DAngleMap = new ConcurrentHashMap<>();
     private CompositeDisposable getFeatureDelayedDisposables = new CompositeDisposable();
+
+    private boolean[] behavorDectect = new boolean[4];
 
     //打开摄像头
     private Integer cameraID = Camera.CameraInfo.CAMERA_FACING_FRONT;
@@ -163,17 +167,21 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         recyclerShowFaceInfo.setItemAnimator(new DefaultItemAnimator());
         compareResultList = new ArrayList<>();
         adapter = new ShowFaceInfoAdapter(compareResultList,this);
-        if(adapter==null){
-            Log.v(TAG,"adapter为空");
-        }
         recyclerShowFaceInfo.setAdapter(adapter);
 
-
+        initBehavorDetect();
 
 
 
         Button button = findViewById(R.id.register_face);
         button.setOnClickListener(this);
+    }
+
+    private void initBehavorDetect() {
+        behavorDectect[0] = false;
+        behavorDectect[1] = false;
+        behavorDectect[2] = false;
+        behavorDectect[3] = false;
     }
 
 
@@ -210,27 +218,40 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
             public void onFaceFeatureInfoGet(@Nullable final FaceFeature faceFeature, final Integer requestId) {
                 //FR成功
                 if (faceFeature != null) {
+                    Log.v(TAG,face3DAngleMap.get(requestId).toString());
 //                    Log.i(TAG, "onPreview: fr end = " + System.currentTimeMillis() + " trackId = " + requestId);
 
-                    //不做活体检测的情况，直接搜索
-                    if (!livenessDetect) {
-                        searchFace(faceFeature, requestId);
-                    }
+                if(face3DAngleMap.get(requestId) !=null && face3DAngleMap.get(requestId).getYaw()>10){
+                    behavorDectect[0] = true;
+                    Log.v(TAG,".........右摇");
+                }
+                if(face3DAngleMap.get(requestId) !=null && face3DAngleMap.get(requestId).getYaw()<-10){
+                    behavorDectect[1] = true;
+                    Log.v(TAG,".........左摇");
+                }
+                if(face3DAngleMap.get(requestId) !=null && face3DAngleMap.get(requestId).getPitch()>10){
+                    behavorDectect[2] = true;
+                    Log.v(TAG,".........上抬");
+                }
+                if(face3DAngleMap.get(requestId) !=null && face3DAngleMap.get(requestId).getPitch()<-10){
+                    behavorDectect[3] = true;
+                    Log.v(TAG,".........下低");
+                }
+                if(behavorDectect[0] && behavorDectect[1] && behavorDectect[2] && behavorDectect[3]) {
                     //活体检测通过，搜索特征
-                    else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
-                        //Toast.makeText(AddFaceActivity.this, "活体检测通过", Toast.LENGTH_SHORT).show();
+                    if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
+                        Log.v(TAG,".........活体检测成功");
                         Message msg =new Message();
                         msg.what = SUCCESS;
                         myhandle.sendMessage(msg);
-                        searchFace(faceFeature, requestId);
                     }
                     //活体检测未出结果，延迟100ms再执行该函数
                     else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.UNKNOWN) {
                         getFeatureDelayedDisposables.add(Observable.timer(WAIT_LIVENESS_INTERVAL, TimeUnit.MILLISECONDS)
                                 .subscribe(aLong -> onFaceFeatureInfoGet(faceFeature, requestId)));
                     }
-                    //活体检测失败
-                    else {
+                } else {
+                        //活体检测失败
                         Message msg =new Message();
                         msg.what = FAIL;
                         myhandle.sendMessage(msg);
@@ -267,7 +288,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
             @Override
             public void onPreview(final byte[] nv21, Camera camera) {
 
-                Log.v(TAG,"进入预览");
+                //Log.v(TAG,"进入预览");
                 if (faceRectView != null) {
                     faceRectView.clearFaceInfo();
                 }
@@ -321,6 +342,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                     for (int i = 0; i < facePreviewInfoList.size(); i++) {
                         if (livenessDetect) {
                             livenessMap.put(facePreviewInfoList.get(i).getTrackId(), facePreviewInfoList.get(i).getLivenessInfo().getLiveness());
+                            face3DAngleMap.put(facePreviewInfoList.get(i).getTrackId(),facePreviewInfoList.get(i).getFace3DAngle());
                         }
                         /**
                          * 对于每个人脸，若状态为空或者为失败，则请求FR（可根据需要添加其他判断以限制FR次数），
@@ -375,7 +397,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         Log.v(TAG,"初始化引擎");
         faceEngine = new FaceEngine();
         afCode = faceEngine.init(this, FaceEngine.ASF_DETECT_MODE_VIDEO, ConfigUtil.getFtOrient(this),
-                16, MAX_DETECT_NUM, FaceEngine.ASF_FACE_RECOGNITION | FaceEngine.ASF_FACE_DETECT | FaceEngine.ASF_LIVENESS);
+                16, MAX_DETECT_NUM, FaceEngine.ASF_FACE_RECOGNITION | FaceEngine.ASF_FACE_DETECT | FaceEngine.ASF_LIVENESS | FaceEngine.ASF_FACE3DANGLE);
         VersionInfo versionInfo = new VersionInfo();
         faceEngine.getVersion(versionInfo);
         Log.i(TAG, "initEngine:  init: " + afCode + "  version:" + versionInfo);
@@ -396,82 +418,6 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         }
     }
 
-    private void searchFace(final FaceFeature faceFeature, final Integer requestId) {
-        Log.v(TAG,"进入searchFace");
-        Observable
-                .create((ObservableOnSubscribe<CompareResult>) emitter -> {
-//                        Log.i(TAG, "subscribe: fr search start = " + System.currentTimeMillis() + " trackId = " + requestId);
-                    CompareResult compareResult = FaceServer.getInstance().getTopOfFaceLib(faceFeature);
-//                        Log.i(TAG, "subscribe: fr search end = " + System.currentTimeMillis() + " trackId = " + requestId);
-                    if (compareResult == null) {
-                        emitter.onError(null);
-                    } else {
-                        emitter.onNext(compareResult);
-                    }
-                })
-                .subscribeOn(Schedulers.computation())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Observer<CompareResult>() {
-                    @Override
-                    public void onSubscribe(Disposable d) {
-
-                    }
-
-                    @Override
-                    public void onNext(CompareResult compareResult) {
-                        if (compareResult == null || compareResult.getUserName() == null) {
-                            requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
-                            faceHelper.addName(requestId, "VISITOR " + requestId);
-                            return;
-                        }
-
-//                        Log.i(TAG, "onNext: fr search get result  = " + System.currentTimeMillis() + " trackId = " + requestId + "  similar = " + compareResult.getSimilar());
-                        if (compareResult.getSimilar() > SIMILAR_THRESHOLD) {
-                            Log.v(TAG,"查找成功");
-                            boolean isAdded = false;
-                            if (compareResultList == null) {
-                                requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
-                                faceHelper.addName(requestId, "VISITOR " + requestId);
-                                return;
-                            }
-                            for (CompareResult compareResult1 : compareResultList) {
-                                if (compareResult1.getTrackId() == requestId) {
-                                    isAdded = true;
-                                    break;
-                                }
-                            }
-                            if (!isAdded) {
-                                //对于多人脸搜索，假如最大显示数量为 MAX_DETECT_NUM 且有新的人脸进入，则以队列的形式移除
-                                if (compareResultList.size() >= MAX_DETECT_NUM) {
-                                    compareResultList.remove(0);
-                                    adapter.notifyItemRemoved(0);
-                                }
-                                //添加显示人员时，保存其trackId
-                                compareResult.setTrackId(requestId);
-                                compareResultList.add(compareResult);
-                                adapter.notifyItemInserted(compareResultList.size() - 1);
-                            }
-                            requestFeatureStatusMap.put(requestId, RequestFeatureStatus.SUCCEED);
-                            faceHelper.addName(requestId, compareResult.getUserName());
-
-                        } else {
-                            requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
-                            faceHelper.addName(requestId, "VISITOR " + requestId);
-                        }
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
-                    }
-
-                    @Override
-                    public void onComplete() {
-
-                    }
-                });
-
-    }
 
     /**
      * 删除已经离开的人脸

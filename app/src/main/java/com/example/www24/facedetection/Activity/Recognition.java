@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.graphics.Point;
 import android.hardware.Camera;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -29,6 +31,7 @@ import com.arcsoft.face.LivenessInfo;
 import com.arcsoft.face.VersionInfo;
 import com.example.www24.facedetection.Model.DrawInfo;
 import com.example.www24.facedetection.Model.FacePreviewInfo;
+import com.example.www24.facedetection.MyApplication;
 import com.example.www24.facedetection.R;
 import com.example.www24.facedetection.faceserver.CompareResult;
 import com.example.www24.facedetection.faceserver.FaceServer;
@@ -67,6 +70,7 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
      * 当FR成功，活体未成功时，FR等待活体的时间
      */
     private static final int WAIT_LIVENESS_INTERVAL = 50;
+
     private CameraHelper cameraHelper;
     private DrawHelper drawHelper;
     private Camera.Size previewSize;
@@ -101,6 +105,22 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
     private FaceEngine faceEngine;
 
 
+    public static final int FAIL = 1;
+    public static final int SUCCESS = 2;
+    private static Handler myhandle = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            switch(msg.what){
+                case FAIL:
+                    Toast.makeText(MyApplication.getContext(),"活体检测失败",Toast.LENGTH_SHORT).show();
+                    break;
+                case SUCCESS:
+                    Toast.makeText(MyApplication.getContext(),"活体检测成功",Toast.LENGTH_SHORT).show();
+                    break;
+            }
+
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,6 +141,7 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
         previewView.getViewTreeObserver().addOnGlobalLayoutListener(this);
 
         faceRectView = findViewById(R.id.face_rect_view_recog);
+
         RecyclerView recyclerShowFaceInfo = findViewById(R.id.recycler_view_person_recog);
         DisplayMetrics dm = getResources().getDisplayMetrics();
         int spanCount = (int) (dm.widthPixels / (getResources().getDisplayMetrics().density * 100 + 0.5f));
@@ -128,9 +149,6 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
         recyclerShowFaceInfo.setItemAnimator(new DefaultItemAnimator());
         compareResultList = new ArrayList<>();
         adapter = new ShowFaceInfoAdapter(compareResultList,this);
-        if(adapter==null){
-            Log.v(TAG,"adapter为空");
-        }
         recyclerShowFaceInfo.setAdapter(adapter);
     }
 
@@ -168,7 +186,7 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
         Log.v(TAG,"初始化引擎");
         faceEngine = new FaceEngine();
         afCode = faceEngine.init(this, FaceEngine.ASF_DETECT_MODE_VIDEO, ConfigUtil.getFtOrient(this),
-                16, MAX_DETECT_NUM, FaceEngine.ASF_FACE_RECOGNITION | FaceEngine.ASF_FACE_DETECT | FaceEngine.ASF_LIVENESS);
+                16, MAX_DETECT_NUM, FaceEngine.ASF_FACE_RECOGNITION | FaceEngine.ASF_FACE_DETECT | FaceEngine.ASF_LIVENESS | FaceEngine.ASF_FACE3DANGLE);
         VersionInfo versionInfo = new VersionInfo();
         faceEngine.getVersion(versionInfo);
         Log.i(TAG, "initEngine:  init: " + afCode + "  version:" + versionInfo);
@@ -213,7 +231,9 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
                     }
                     //活体检测通过，搜索特征
                     else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
-                        //Toast.makeText(Recognition.this, "活体检测通过", Toast.LENGTH_SHORT).show();
+                        Message msg =new Message();
+                        msg.what = SUCCESS;
+                        myhandle.sendMessage(msg);
                         searchFace(faceFeature, requestId);
                     }
                     //活体检测未出结果，延迟100ms再执行该函数
@@ -223,7 +243,9 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
                     }
                     //活体检测失败
                     else {
-                        //showToast("活体检测失败");
+                        Message msg =new Message();
+                        msg.what = FAIL;
+                        myhandle.sendMessage(msg);
                         requestFeatureStatusMap.put(requestId, RequestFeatureStatus.NOT_ALIVE);
                     }
 
@@ -272,9 +294,9 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
                 clearLeftFace(facePreviewInfoList);
 
                 if (facePreviewInfoList != null && facePreviewInfoList.size() > 0 && previewSize != null) {
-
                     for (int i = 0; i < facePreviewInfoList.size(); i++) {
                         if (livenessDetect) {
+                            //活体信息
                             livenessMap.put(facePreviewInfoList.get(i).getTrackId(), facePreviewInfoList.get(i).getLivenessInfo().getLiveness());
                         }
                         /**
