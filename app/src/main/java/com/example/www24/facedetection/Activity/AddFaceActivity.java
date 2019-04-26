@@ -79,8 +79,15 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
 
     private FaceHelper faceHelper;
 
-    //活体检测开关
+    //活体检测
     private boolean livenessDetect = true;
+    private boolean[] behavorDectect = new boolean[4];
+    private static final int GESTUREDETECT_STATUS_READY = 0;
+    private static final int GESTUREDETECT_STATUS_PROCESSING = 1;
+    private static final int GESTUREDETECT_STATUS_DONE = 2;
+    private int gestureDetect_status;
+
+
     //人脸比对结果参数
     private List<CompareResult> compareResultList;
     private ShowFaceInfoAdapter adapter;
@@ -105,7 +112,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     private ConcurrentHashMap<Integer, Face3DAngle> face3DAngleMap = new ConcurrentHashMap<>();
     private CompositeDisposable getFeatureDelayedDisposables = new CompositeDisposable();
 
-    private boolean[] behavorDectect = new boolean[4];
+
 
     //打开摄像头
     private Integer cameraID = Camera.CameraInfo.CAMERA_FACING_FRONT;
@@ -169,7 +176,9 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         adapter = new ShowFaceInfoAdapter(compareResultList,this);
         recyclerShowFaceInfo.setAdapter(adapter);
 
+        //点头摇头检测状态初始化
         initBehavorDetect();
+        gestureDetect_status = GESTUREDETECT_STATUS_READY;
 
 
 
@@ -218,52 +227,85 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
             public void onFaceFeatureInfoGet(@Nullable final FaceFeature faceFeature, final Integer requestId) {
                 //FR成功
                 if (faceFeature != null) {
-                    Log.v(TAG,face3DAngleMap.get(requestId).toString());
+                    Log.v(TAG, face3DAngleMap.get(requestId).toString());
 //                    Log.i(TAG, "onPreview: fr end = " + System.currentTimeMillis() + " trackId = " + requestId);
 
-                if(face3DAngleMap.get(requestId) !=null && face3DAngleMap.get(requestId).getYaw()>10){
-                    behavorDectect[0] = true;
-                    Log.v(TAG,".........右摇");
-                }
-                if(face3DAngleMap.get(requestId) !=null && face3DAngleMap.get(requestId).getYaw()<-10){
-                    behavorDectect[1] = true;
-                    Log.v(TAG,".........左摇");
-                }
-                if(face3DAngleMap.get(requestId) !=null && face3DAngleMap.get(requestId).getPitch()>10){
-                    behavorDectect[2] = true;
-                    Log.v(TAG,".........上抬");
-                }
-                if(face3DAngleMap.get(requestId) !=null && face3DAngleMap.get(requestId).getPitch()<-10){
-                    behavorDectect[3] = true;
-                    Log.v(TAG,".........下低");
-                }
-                if(behavorDectect[0] && behavorDectect[1] && behavorDectect[2] && behavorDectect[3]) {
-                    //活体检测通过，搜索特征
-                    if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
-                        Log.v(TAG,".........活体检测成功");
-                        Message msg =new Message();
-                        msg.what = SUCCESS;
-                        myhandle.sendMessage(msg);
-                    }
-                    //活体检测未出结果，延迟100ms再执行该函数
-                    else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.UNKNOWN) {
+
+//                    //点头摇头检测
+//                    if(face3DAngleMap.get(requestId) != null && behavorDectect[0]){
+//                        if(behavorDectect[1]){
+//                            if(behavorDectect[2]){
+//                                if(behavorDectect[3]){
+//                                    if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
+//                                        Log.v(TAG,".........活体检测成功");
+//                                        Message msg =new Message();
+//                                        msg.what = SUCCESS;
+//                                        myhandle.sendMessage(msg);
+//                                    }
+//                                    //活体检测未出结果，延迟100ms再执行该函数
+//                                    else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.UNKNOWN) {
+//                                        getFeatureDelayedDisposables.add(Observable.timer(WAIT_LIVENESS_INTERVAL, TimeUnit.MILLISECONDS)
+//                                                .subscribe(aLong -> onFaceFeatureInfoGet(faceFeature, requestId)));
+//                                    }
+//
+//
+//                                }else{
+//                                    Log.v(TAG,".........请下点头");
+//                                    if(face3DAngleMap.get(requestId).getPitch()<-10) {
+//                                        behavorDectect[3] = true;
+//                                        Log.v(TAG, ".........下点头检测成功");
+//                                    }
+//                                }
+//                            }else {
+//                                Log.v(TAG,".........请上台头");
+//                                if(face3DAngleMap.get(requestId).getPitch()>10){
+//                                    behavorDectect[2] = true;
+//                                    Log.v(TAG,".........上台头检测成功");
+//                                }
+//                            }
+//                        }else if(!behavorDectect[1]){
+//                            Log.v(TAG,".........请左摇头");
+//                            if(face3DAngleMap.get(requestId).getYaw()<-10){
+//                                behavorDectect[1] = true;
+//                                Log.v(TAG,".........左摇检测成功");
+//                            }
+//                        }
+//                    }else if(face3DAngleMap.get(requestId) != null && !behavorDectect[0]){
+//                        Log.v(TAG,".........请右摇头");
+//                        if(face3DAngleMap.get(requestId).getYaw()>10){
+//                            behavorDectect[0] = true;
+//                            Log.v(TAG,".........右摇检测成功");
+//                        }
+//                    }
+                    if (gestureDetect_status == GESTUREDETECT_STATUS_DONE) {
+                        //活体检测通过，搜索特征
+                        if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
+                            Log.v(TAG, ".........活体检测成功");
+                            Message msg = new Message();
+                            msg.what = SUCCESS;
+                            myhandle.sendMessage(msg);
+                        }
+                        //活体检测未出结果，延迟100ms再执行该函数
+                        else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.UNKNOWN) {
+                            getFeatureDelayedDisposables.add(Observable.timer(WAIT_LIVENESS_INTERVAL, TimeUnit.MILLISECONDS)
+                                    .subscribe(aLong -> onFaceFeatureInfoGet(faceFeature, requestId)));
+                        }else{
+                            //活体检测失败
+                            Message msg = new Message();
+                            msg.what = FAIL;
+                            myhandle.sendMessage(msg);
+                            requestFeatureStatusMap.put(requestId, RequestFeatureStatus.NOT_ALIVE);
+                        }
+                    }else {
                         getFeatureDelayedDisposables.add(Observable.timer(WAIT_LIVENESS_INTERVAL, TimeUnit.MILLISECONDS)
                                 .subscribe(aLong -> onFaceFeatureInfoGet(faceFeature, requestId)));
                     }
-                } else {
-                        //活体检测失败
-                        Message msg =new Message();
-                        msg.what = FAIL;
-                        myhandle.sendMessage(msg);
-                        requestFeatureStatusMap.put(requestId, RequestFeatureStatus.NOT_ALIVE);
-                    }
-
-                }
-                //FR 失败
+                }//FR 失败
                 else {
                     requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);
                 }
             }
+
 
         };
 
@@ -302,6 +344,46 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                     }
                     drawHelper.draw(faceRectView, drawInfoList);
                 }
+
+                //摇头抬头检测
+                if(gestureDetect_status == GESTUREDETECT_STATUS_READY && facePreviewInfoList != null && facePreviewInfoList.size() > 0){
+                    List<DrawInfo> drawInfoList = new ArrayList<>();
+                    if(!behavorDectect[0]){
+                        drawInfoList.add(new DrawInfo(facePreviewInfoList.get(0).getFaceInfo().getRect(), GenderInfo.UNKNOWN, AgeInfo.UNKNOWN_AGE, LivenessInfo.UNKNOWN,
+                                "请左摇头"));
+                        Log.v(TAG,".........请左摇头");
+                        //drawHelper.draw(faceRectView,);
+                    }else if(!behavorDectect[1]){
+                        drawInfoList.add(new DrawInfo(facePreviewInfoList.get(0).getFaceInfo().getRect(), GenderInfo.UNKNOWN, AgeInfo.UNKNOWN_AGE, LivenessInfo.UNKNOWN,
+                                "请右摇头"));
+                        Log.v(TAG,".........请右摇头");
+                    }else if(!behavorDectect[2]){
+                        drawInfoList.add(new DrawInfo(facePreviewInfoList.get(0).getFaceInfo().getRect(), GenderInfo.UNKNOWN, AgeInfo.UNKNOWN_AGE, LivenessInfo.UNKNOWN,
+                                "请上抬头"));
+                        Log.v(TAG,".........请上抬头");
+                    }else if(!behavorDectect[3]){
+                        drawInfoList.add(new DrawInfo(facePreviewInfoList.get(0).getFaceInfo().getRect(), GenderInfo.UNKNOWN, AgeInfo.UNKNOWN_AGE, LivenessInfo.UNKNOWN,
+                                "请下低头"));
+                        Log.v(TAG,".........请下低头");
+                    }else{
+                        gestureDetect_status = GESTUREDETECT_STATUS_DONE;
+                        Log.v(TAG,"动作检测成功");
+                    }
+                    drawHelper.draw(faceRectView, drawInfoList);
+                    if(!behavorDectect[0] && facePreviewInfoList.get(0).getFace3DAngle().getYaw() > 10){
+                        behavorDectect[0] = true;
+                    }
+                    if(behavorDectect[0] && !behavorDectect[1] && facePreviewInfoList.get(0).getFace3DAngle().getYaw() < -10){
+                        behavorDectect[1] = true;
+                    }
+                    if(behavorDectect[0] && behavorDectect[1] && !behavorDectect[2] && facePreviewInfoList.get(0).getFace3DAngle().getPitch() > 10){
+                        behavorDectect[2] = true;
+                    }
+                    if(behavorDectect[0] && behavorDectect[1] && behavorDectect[2] && !behavorDectect[3] && facePreviewInfoList.get(0).getFace3DAngle().getPitch() < -10){
+                        behavorDectect[3] = true;
+                    }
+                }
+
                 if (registerStatus == REGISTER_STATUS_READY && facePreviewInfoList != null && facePreviewInfoList.size() > 0) {
                     registerStatus = REGISTER_STATUS_PROCESSING;
                     Observable.create((ObservableOnSubscribe<Boolean>) emitter -> {
@@ -335,6 +417,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                 }
                             });
                 }
+
                 clearLeftFace(facePreviewInfoList);
 
                 if (facePreviewInfoList != null && facePreviewInfoList.size() > 0 && previewSize != null) {
