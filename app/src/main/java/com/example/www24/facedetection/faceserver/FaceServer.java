@@ -297,18 +297,6 @@ public class FaceServer {
 
     }
 
-//    public float compare(FaceFeature faceFeature){
-//        if (faceEngine == null || isProcessing || faceFeature == null || faceRegisterInfoList == null || faceRegisterInfoList.size() == 0) {
-//            return null;
-//        }
-//        FaceFeature tempFaceFeature = new FaceFeature();
-//        FaceSimilar faceSimilar = new FaceSimilar();
-//        isProcessing = true;
-//        tempFaceFeature.setFeatureData(faceRegisterInfoList.get(0).getFeatureData());
-//
-//        faceEngine.compareFaceFeature(faceFeature, tempFaceFeature, faceSimilar);
-//        return faceSimilar.getScore();
-//    }
 
     /**
      * 在特征库中搜索

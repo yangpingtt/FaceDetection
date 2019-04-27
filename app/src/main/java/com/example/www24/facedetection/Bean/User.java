@@ -1,4 +1,4 @@
-package com.example.www24.facedetection.Model;
+package com.example.www24.facedetection.Bean;
 
 import java.io.Serializable;
 

@@ -10,7 +10,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-import com.example.www24.facedetection.Model.User;
+import com.example.www24.facedetection.Bean.User;
 import com.example.www24.facedetection.R;
 import com.google.gson.Gson;
 
