@@ -118,6 +118,7 @@ public class HttpUtil {
                     if(listener !=null){
                         //回调onError方法
                         listener.onError(e);
+                        e.printStackTrace();
                     }
                 }
             }

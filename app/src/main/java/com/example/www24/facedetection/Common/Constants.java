@@ -10,4 +10,9 @@ public class Constants {
     public static final String FACEPP_API_KEY = "rfmedjxb6ELXDiM6Iil2vD6EwVuxwc_a";
     public static final String FACEPP_API_SECRET = "NXXFlX6iS_mD7N6yVdg5y7KcBtfEE-_9";
     public static final MediaType JSON_TYPE = MediaType.parse("application/json; charset=utf-8");
+    public static final String RETURN_ATTRIBUTES = "mouthstatus,eyestatus";
+    public static final int MOUTHOPEN_CONFIDENCE_THRESHOLD = 80;
+    public static final int EYEOPEN_CONFIDENCE_THRESHOLD = 50;
+    public static final int EYECLOSE_CONFIDENCE_THRESHOLD = 50;
+
 }

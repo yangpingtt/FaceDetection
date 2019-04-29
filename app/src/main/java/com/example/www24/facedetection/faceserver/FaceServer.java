@@ -6,22 +6,25 @@ import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
+import android.os.Environment;
 import android.util.Log;
 
-import com.example.www24.facedetection.Model.FaceRegisterInfo;
-import com.example.www24.facedetection.util.ImageUtil;
 import com.arcsoft.face.ErrorInfo;
 import com.arcsoft.face.FaceEngine;
 import com.arcsoft.face.FaceFeature;
 import com.arcsoft.face.FaceInfo;
 import com.arcsoft.face.FaceSimilar;
+import com.example.www24.facedetection.Model.FaceRegisterInfo;
+import com.example.www24.facedetection.util.ImageUtil;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /**
  * 人脸库操作类，包含注册和搜索
@@ -297,6 +300,109 @@ public class FaceServer {
 
     }
 
+
+    /**
+     * 获取Jpeg图片
+     */
+    public byte[] getJpegImage(byte[] nv21, int width, int height){
+        synchronized (this){
+            if(faceEngine == null|| nv21 == null){
+                return null;
+            }
+            //人脸检测
+            //图片存储的文件夹
+            boolean dirExists = true;
+            File imgDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "111111111testFaceDetection");
+            if (!imgDir.exists()) {
+                dirExists = imgDir.mkdirs();
+            }
+            if (!dirExists) {
+                return null;
+            }
+            List<FaceInfo> faceInfoList = new ArrayList<>();
+                int code = faceEngine.detectFaces(nv21, width, height, FaceEngine.CP_PAF_NV21, faceInfoList);
+                if (code == ErrorInfo.MOK && faceInfoList.size() > 0) {
+                    try{
+                        YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
+                        //为了美观，扩大rect截取注册图
+                        Rect cropRect = getBestRect(width, height, faceInfoList.get(0).getRect());
+                        if (cropRect == null) {
+                            return null;
+                        }
+                        ByteArrayOutputStream fosImage = new ByteArrayOutputStream();
+                        yuvImage.compressToJpeg(cropRect, 100, fosImage);
+                        byte[] jpegData = fosImage.toByteArray();
+                        fosImage.close();
+                        Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData,0,jpegData.length);
+
+
+                        //判断人脸旋转角度，若不为0度则旋转注册图
+                        boolean needAdjust = false;
+                        if (bitmap != null) {
+                            switch (faceInfoList.get(0).getOrient()) {
+                                case FaceEngine.ASF_OC_0:
+                                    break;
+                                case FaceEngine.ASF_OC_90:
+                                    bitmap = ImageUtil.getRotateBitmap(bitmap, 90);
+                                    needAdjust = true;
+                                    break;
+                                case FaceEngine.ASF_OC_180:
+                                    bitmap = ImageUtil.getRotateBitmap(bitmap, 180);
+                                    needAdjust = true;
+                                    break;
+                                case FaceEngine.ASF_OC_270:
+                                    bitmap = ImageUtil.getRotateBitmap(bitmap, 270);
+                                    needAdjust = true;
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+
+                        if(needAdjust){
+                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                            bitmap.compress(Bitmap.CompressFormat.JPEG,100,byteArrayOutputStream);
+                            jpegData = byteArrayOutputStream.toByteArray();
+                            byteArrayOutputStream.close();
+                        }
+
+                        //测试，存储从前置摄像头获取的图片
+                        try {
+                            File file = new File(imgDir + File.separator + getRandomString(10) + IMG_SUFFIX);
+                            FileOutputStream fos = new FileOutputStream(file);
+                            fos.write(jpegData, 0, jpegData.length);
+                            fos.flush();
+                            fos.close();
+                            //Log.v(TAG,jpegData);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+
+                        return jpegData;
+                    }catch (Exception e){
+                        e.printStackTrace();
+                    }
+            }
+            return null;
+        }
+    }
+
+
+    public static String getRandomString(int length) { //length表示生成字符串的长度
+        String base = "abcdefghijklmnopqrstuvwxyz0123456789";
+        Random random = new Random();
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < length; i++) {
+            int number = random.nextInt(base.length());
+            sb.append(base.charAt(number));
+        }
+        return sb.toString();
+    }
+
+
+    /**
+     * 获取嘴部状态
+     */
 
     /**
      * 在特征库中搜索
