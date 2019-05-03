@@ -366,17 +366,21 @@ public class FaceServer {
                             byteArrayOutputStream.close();
                         }
 
-                        //测试，存储从前置摄像头获取的图片
-                        try {
-                            File file = new File(imgDir + File.separator + getRandomString(10) + IMG_SUFFIX);
-                            FileOutputStream fos = new FileOutputStream(file);
-                            fos.write(jpegData, 0, jpegData.length);
-                            fos.flush();
-                            fos.close();
-                            //Log.v(TAG,jpegData);
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                        if(bitmap != null && !bitmap.isRecycled()){
+                            bitmap.recycle();
                         }
+
+                        //测试，存储从前置摄像头获取的图片
+//                        try {
+//                            File file = new File(imgDir + File.separator + getRandomString(10) + IMG_SUFFIX);
+//                            FileOutputStream fos = new FileOutputStream(file);
+//                            fos.write(jpegData, 0, jpegData.length);
+//                            fos.flush();
+//                            fos.close();
+//                            //Log.v(TAG,jpegData);
+//                        } catch (Exception e) {
+//                            e.printStackTrace();
+//                        }
 
                         return jpegData;
                     }catch (Exception e){

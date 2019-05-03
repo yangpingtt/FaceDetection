@@ -1,6 +1,8 @@
 package com.example.www24.facedetection.Activity;
 
 import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
@@ -56,6 +58,7 @@ import com.google.gson.Gson;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -117,7 +120,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     private boolean[] eyesDetect = new boolean[4];
     private int eyesDetect_status;
     //人脸框提示信息
-    private String hintMessage = "";
+    private String hintMessage;
 
 
 
@@ -159,27 +162,33 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     };
 
     private static final int ACTION_REQUEST_PERMISSIONS = 0x001;
-    private static final float SIMILAR_THRESHOLD = 0.8F;
     private FaceEngine faceEngine;
     private FaceRectView faceRectView;
 
     public static final int FAIL = 1;
     public static final int SUCCESS = 2;
 
-    private static Handler myhandle = new Handler(){
+    //Handler定义
+    private MyHandler myhandle = new MyHandler(this);
+    private static class MyHandler extends Handler {
+        private WeakReference<Context> reference;
+        public MyHandler(Context context) {
+            reference = new WeakReference<>(context);
+        }
         @Override
         public void handleMessage(Message msg) {
-            switch(msg.what){
-                case FAIL:
-                    Toast.makeText(MyApplication.getContext(),"活体检测失败",Toast.LENGTH_SHORT).show();
-                    break;
-                case SUCCESS:
-                    Toast.makeText(MyApplication.getContext(),"活体检测成功",Toast.LENGTH_SHORT).show();
-                    break;
+            AddFaceActivity activity = (AddFaceActivity) reference.get();
+            if(activity != null){
+                switch (msg.what){
+                    case FAIL :
+                        Toast.makeText(MyApplication.getContext(),"活体检测失败",Toast.LENGTH_SHORT).show();
+                        break;
+                    case SUCCESS:
+                        Toast.makeText(MyApplication.getContext(),"活体检测成功",Toast.LENGTH_SHORT).show();
+                }
             }
-
         }
-    };
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -211,16 +220,15 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
 
         //活体检测状态初始化
         initBehavorDetect();
-        gestureDetect_status = GESTUREDETECT_STATUS_READY;
-        mouthDetect_status = MOUTHDETECT_STATUS_READY;
-        eyesDetect_status = EYEDETECT_STATUS_READY;
-
 
         Button button = findViewById(R.id.register_face);
         button.setOnClickListener(this);
     }
 
     private void initBehavorDetect() {
+        gestureDetect_status = GESTUREDETECT_STATUS_READY;
+        mouthDetect_status = MOUTHDETECT_STATUS_READY;
+        eyesDetect_status = EYEDETECT_STATUS_READY;
         behavorDectect[0] = false;
         behavorDectect[1] = false;
         behavorDectect[2] = false;
@@ -229,6 +237,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         eyesDetect[1] = false;
         eyesDetect[2] = false;
         eyesDetect[3] = false;
+        hintMessage = "";
     }
 
 
@@ -272,9 +281,11 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                         //活体检测通过，搜索特征
                         if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
                             Log.v(TAG, ".........活体检测成功");
-                            Message msg = new Message();
-                            msg.what = SUCCESS;
-                            myhandle.sendMessage(msg);
+                            hintMessage = "活体检测成功";
+//                            Message msg = new Message();
+//                            msg.what = SUCCESS;
+//                            myhandle.sendMessage(msg);
+                            registerStatus = REGISTER_STATUS_READY;
                         }
                         //活体检测未出结果，延迟100ms再执行该函数
                         else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.UNKNOWN) {
@@ -285,7 +296,8 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                             Message msg = new Message();
                             msg.what = FAIL;
                             myhandle.sendMessage(msg);
-                            requestFeatureStatusMap.put(requestId, RequestFeatureStatus.NOT_ALIVE);
+                            hintMessage = "活体检测失败，重新检测";
+                            initBehavorDetect();
                         }
                     }else {
                         getFeatureDelayedDisposables.add(Observable.timer(WAIT_LIVENESS_INTERVAL, TimeUnit.MILLISECONDS)
@@ -339,22 +351,22 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
 
                 //摇头抬头检测
                 if(gestureDetect_status == GESTUREDETECT_STATUS_READY && facePreviewInfoList != null && facePreviewInfoList.size() > 0 ){
-                    if(!behavorDectect[0]){
-                        hintMessage = "请向左转头";
-                        Log.v(TAG,".........请左摇头");
-                        //drawHelper.draw(faceRectView,);
-                    }else if(!behavorDectect[1]){
-                        hintMessage = "请向右转头";
-                        Log.v(TAG,".........请右摇头");
-                    }else if(!behavorDectect[2]){
-                        hintMessage = "请向上抬头";
-                        Log.v(TAG,".........请上抬头");
-                    }else if(!behavorDectect[3]){
-                        hintMessage = "请向下低头";
-                        Log.v(TAG,".........请下低头");
-                    }else{
-                        gestureDetect_status = GESTUREDETECT_STATUS_DONE;
-                        hintMessage = "张张嘴";
+                            if(!behavorDectect[0]){
+                                hintMessage = "请向左转头";
+                                Log.v(TAG,".........请左摇头");
+                                //drawHelper.draw(faceRectView,);
+                            }else if(!behavorDectect[1]){
+                                hintMessage = "请向右转头";
+                                Log.v(TAG,".........请右摇头");
+                            }else if(!behavorDectect[2]){
+                                hintMessage = "请向上抬头";
+                                Log.v(TAG,".........请上抬头");
+                            }else if(!behavorDectect[3]){
+                                hintMessage = "请向下低头";
+                                Log.v(TAG,".........请下低头");
+                            }else{
+                                gestureDetect_status = GESTUREDETECT_STATUS_DONE;
+                                hintMessage = "张张嘴";
                         Log.v(TAG,"动作检测成功");
                     }
                     if(!behavorDectect[0] && facePreviewInfoList.get(0).getFace3DAngle().getYaw() > 10){
@@ -377,26 +389,107 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                         mouthDetect_status == MOUTHDETECT_STATUS_READY ){
                     mouthDetect_status = MOUTHDETECT_STATUS_PROCESSING;
                     Log.v(TAG,"进入张嘴检测");
-                    Observable.create((ObservableOnSubscribe<Boolean>) emitter -> {
+                    Observable.create((ObservableOnSubscribe<byte[]>) emitter -> {
                         jpegData = FaceServer.getInstance().getJpegImage(nv21.clone(),previewSize.width, previewSize.height);
-                        boolean success;
                         if(jpegData != null){
-                             success = true;
+                            emitter.onNext(jpegData);
                         } else {
-                            success = false;
+                            emitter.onError(null);
                         }
-                        emitter.onNext(success);
                     })
                             .subscribeOn(Schedulers.computation())
                             .observeOn(AndroidSchedulers.mainThread())
-                            .subscribe(new Observer<Boolean>() {
+                            .subscribe(new Observer<byte[]>() {
                                 @Override
                                 public void onSubscribe(Disposable d) {
 
                                 }
                                 @Override
-                                public void onNext(Boolean success) {
-                                    if(success){
+                                public void onNext(byte[] jpegData) {
+                                    String url = "https://api-cn.faceplusplus.com/facepp/v3/detect";
+                                    HashMap<String, String> map = new HashMap<>();
+                                    HashMap<String, byte[]> byteMap = new HashMap<>();
+                                    map.put("api_key", FACEPP_API_KEY);
+                                    map.put("api_secret", FACEPP_API_SECRET);
+                                    map.put("return_landmark", "0");
+                                    map.put("return_attributes", RETURN_ATTRIBUTES);
+                                    byteMap.put("image_file", jpegData);
+                                    Log.v(TAG,"提交至旷视服务器前");
+                                    post(url, map, byteMap, new HttpCallbackListen() {
+                                        @Override
+                                        public void onFinish(String response) {
+                                            Log.v(TAG,response);
+                                            JSONObject jsonResult = null;
+                                            try {
+                                                jsonResult = new JSONObject(response);
+                                                Log.v(TAG,jsonResult.toString());
+                                                String face = jsonResult.get("faces").toString();
+                                                if(!face.equals("[]")){
+                                                    Gson gson = new Gson();
+                                                    ResultFromFacePP resultFromFacePP = gson.fromJson(String.valueOf(jsonResult),ResultFromFacePP.class);
+                                                    List<ResultFromFacePP.FacesBean> faces = resultFromFacePP.getFaces();
+                                                    MouthstatusBean mouthstatus = faces.get(0).getAttributes().getMouthstatus();
+
+                                                    if(mouthstatus.getOpen() > MOUTHOPEN_CONFIDENCE_THRESHOLD){
+                                                        hintMessage = "眨眨眼";
+                                                        mouthDetect_status = MOUTHDETECT_STATUS_DONR;
+                                                    }else{
+                                                        hintMessage = "张张嘴";
+                                                        mouthDetect_status = GESTUREDETECT_STATUS_READY;
+                                                    }
+                                                } else{
+                                                    hintMessage = "张张嘴";
+                                                    mouthDetect_status = GESTUREDETECT_STATUS_READY;
+                                                }
+                                            } catch (JSONException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+                                        @Override
+                                        public void onError(Exception e) {
+                                            Log.v(TAG,"利用旷视API处理人脸数据异常");
+                                        }
+                                    });
+                                }
+                                @Override
+                                public void onError(Throwable e) {
+
+
+                                }
+                                @Override
+                                public void onComplete() {
+
+                                }
+                            });
+                }
+
+
+                //眨眼检测
+                if(gestureDetect_status == GESTUREDETECT_STATUS_DONE && facePreviewInfoList != null && facePreviewInfoList.size() > 0 &&
+                        mouthDetect_status == MOUTHDETECT_STATUS_DONR && eyesDetect_status == EYEDETECT_STATUS_READY){
+                    eyesDetect_status = EYEDETECT_STATUS_PROCESSING;
+                    Log.v(TAG,"进入眨眼检测");
+                    if(eyesDetect[0] && eyesDetect[1] && eyesDetect[2] && eyesDetect[3]){
+                        hintMessage = "动作检测完成";
+                        eyesDetect_status = EYEDETECT_STATUS_DONE;
+                    }else{
+                        Observable.create((ObservableOnSubscribe<byte[]>) emitter -> {
+                            jpegData = FaceServer.getInstance().getJpegImage(nv21.clone(),previewSize.width, previewSize.height);
+                            if(jpegData != null){
+                                emitter.onNext(jpegData);
+                            } else {
+                                emitter.onError(null);
+                            }
+                        })
+                                .subscribeOn(Schedulers.computation())
+                                .observeOn(AndroidSchedulers.mainThread())
+                                .subscribe(new Observer<byte[]>() {
+                                    @Override
+                                    public void onSubscribe(Disposable d) {
+
+                                    }
+                                    @Override
+                                    public void onNext(byte[] jpegData) {
                                         String url = "https://api-cn.faceplusplus.com/facepp/v3/detect";
                                         HashMap<String, String> map = new HashMap<>();
                                         HashMap<String, byte[]> byteMap = new HashMap<>();
@@ -419,18 +512,26 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                                         Gson gson = new Gson();
                                                         ResultFromFacePP resultFromFacePP = gson.fromJson(String.valueOf(jsonResult),ResultFromFacePP.class);
                                                         List<ResultFromFacePP.FacesBean> faces = resultFromFacePP.getFaces();
-                                                        MouthstatusBean mouthstatus = faces.get(0).getAttributes().getMouthstatus();
+                                                        EyestatusBean eyestatus = faces.get(0).getAttributes().getEyestatus();
 
-                                                        if(mouthstatus.getOpen() > MOUTHOPEN_CONFIDENCE_THRESHOLD){
+                                                        if((eyestatus.getLeft_eye_status().getNo_glass_eye_open() > EYEOPEN_CONFIDENCE_THRESHOLD ||
+                                                                eyestatus.getLeft_eye_status().getNormal_glass_eye_open() > EYEOPEN_CONFIDENCE_THRESHOLD)&&(eyestatus.getRight_eye_status().getNo_glass_eye_open() > EYEOPEN_CONFIDENCE_THRESHOLD ||
+                                                                eyestatus.getRight_eye_status().getNormal_glass_eye_open() > EYEOPEN_CONFIDENCE_THRESHOLD)){
                                                             hintMessage = "眨眨眼";
-                                                            mouthDetect_status = MOUTHDETECT_STATUS_DONR;
-                                                        }else{
-                                                            hintMessage = "张张嘴";
-                                                            mouthDetect_status = GESTUREDETECT_STATUS_READY;
+                                                            eyesDetect[0] = true;
+                                                            eyesDetect[2] = true;
+                                                            eyesDetect_status = EYEDETECT_STATUS_READY;
+                                                        }else if((eyestatus.getLeft_eye_status().getNo_glass_eye_close() > EYECLOSE_CONFIDENCE_THRESHOLD ||
+                                                                eyestatus.getLeft_eye_status().getNormal_glass_eye_close() > EYECLOSE_CONFIDENCE_THRESHOLD)&&(eyestatus.getRight_eye_status().getNo_glass_eye_close() > EYECLOSE_CONFIDENCE_THRESHOLD ||
+                                                                eyestatus.getRight_eye_status().getNormal_glass_eye_close() > EYECLOSE_CONFIDENCE_THRESHOLD)){
+                                                            hintMessage = "眨眨眼";
+                                                            eyesDetect[1] = true;
+                                                            eyesDetect[3] = true;
+                                                            eyesDetect_status = EYEDETECT_STATUS_READY;
                                                         }
                                                     } else{
-                                                        hintMessage = "张张嘴";
-                                                        mouthDetect_status = GESTUREDETECT_STATUS_READY;
+                                                        hintMessage = "眨眨眼";
+                                                        eyesDetect_status = EYEDETECT_STATUS_READY;
                                                     }
                                                 } catch (JSONException e) {
                                                     e.printStackTrace();
@@ -441,109 +542,10 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                                 Log.v(TAG,"利用旷视API处理人脸数据异常");
                                             }
                                         });
-                                    }else{
-                                        Log.v(TAG,"获取Jpeg图片失败");
-                                    }
-                                }
-                                @Override
-                                public void onError(Throwable e) {
-
-                                }
-                                @Override
-                                public void onComplete() {
-
-                                }
-                            });
-                }
-
-
-                //眨眼检测
-                if(gestureDetect_status == GESTUREDETECT_STATUS_DONE && facePreviewInfoList != null && facePreviewInfoList.size() > 0 &&
-                        mouthDetect_status == MOUTHDETECT_STATUS_DONR && eyesDetect_status == EYEDETECT_STATUS_READY){
-                    eyesDetect_status = EYEDETECT_STATUS_PROCESSING;
-                    Log.v(TAG,"进入眨眼检测");
-                    if(eyesDetect[0] && eyesDetect[1] && eyesDetect[2] && eyesDetect[3]){
-                        hintMessage = "动作检测完成";
-                        eyesDetect_status = EYEDETECT_STATUS_DONE;
-                    }else{
-                        Observable.create((ObservableOnSubscribe<Boolean>) emitter -> {
-                            jpegData = FaceServer.getInstance().getJpegImage(nv21.clone(),previewSize.width, previewSize.height);
-                            boolean success;
-                            if(jpegData != null){
-                                success = true;
-                            } else {
-                                success = false;
-                            }
-                            emitter.onNext(success);
-                        })
-                                .subscribeOn(Schedulers.computation())
-                                .observeOn(AndroidSchedulers.mainThread())
-                                .subscribe(new Observer<Boolean>() {
-                                    @Override
-                                    public void onSubscribe(Disposable d) {
-
-                                    }
-                                    @Override
-                                    public void onNext(Boolean success) {
-                                        if(success){
-                                            String url = "https://api-cn.faceplusplus.com/facepp/v3/detect";
-                                            HashMap<String, String> map = new HashMap<>();
-                                            HashMap<String, byte[]> byteMap = new HashMap<>();
-                                            map.put("api_key", FACEPP_API_KEY);
-                                            map.put("api_secret", FACEPP_API_SECRET);
-                                            map.put("return_landmark", "0");
-                                            map.put("return_attributes", RETURN_ATTRIBUTES);
-                                            byteMap.put("image_file", jpegData);
-                                            Log.v(TAG,"提交至旷视服务器前");
-                                            post(url, map, byteMap, new HttpCallbackListen() {
-                                                @Override
-                                                public void onFinish(String response) {
-                                                    Log.v(TAG,response);
-                                                    JSONObject jsonResult = null;
-                                                    try {
-                                                        jsonResult = new JSONObject(response);
-                                                        Log.v(TAG,jsonResult.toString());
-                                                        String face = jsonResult.get("faces").toString();
-                                                        if(!face.equals("[]")){
-                                                            Gson gson = new Gson();
-                                                            ResultFromFacePP resultFromFacePP = gson.fromJson(String.valueOf(jsonResult),ResultFromFacePP.class);
-                                                            List<ResultFromFacePP.FacesBean> faces = resultFromFacePP.getFaces();
-                                                            EyestatusBean eyestatus = faces.get(0).getAttributes().getEyestatus();
-
-                                                            if((eyestatus.getLeft_eye_status().getNo_glass_eye_open() > EYEOPEN_CONFIDENCE_THRESHOLD ||
-                                                                    eyestatus.getLeft_eye_status().getNormal_glass_eye_open() > EYEOPEN_CONFIDENCE_THRESHOLD)&&(eyestatus.getRight_eye_status().getNo_glass_eye_open() > EYEOPEN_CONFIDENCE_THRESHOLD ||
-                                                                    eyestatus.getRight_eye_status().getNormal_glass_eye_open() > EYEOPEN_CONFIDENCE_THRESHOLD)){
-                                                                hintMessage = "眨眨眼";
-                                                                eyesDetect[0] = true;
-                                                                eyesDetect[2] = true;
-                                                                eyesDetect_status = EYEDETECT_STATUS_READY;
-                                                            }else if((eyestatus.getLeft_eye_status().getNo_glass_eye_close() > EYECLOSE_CONFIDENCE_THRESHOLD ||
-                                                                    eyestatus.getLeft_eye_status().getNormal_glass_eye_close() > EYECLOSE_CONFIDENCE_THRESHOLD)&&(eyestatus.getRight_eye_status().getNo_glass_eye_close() > EYECLOSE_CONFIDENCE_THRESHOLD ||
-                                                                    eyestatus.getRight_eye_status().getNormal_glass_eye_close() > EYECLOSE_CONFIDENCE_THRESHOLD)){
-                                                                hintMessage = "眨眨眼";
-                                                                eyesDetect[1] = true;
-                                                                eyesDetect[3] = true;
-                                                                eyesDetect_status = EYEDETECT_STATUS_READY;
-                                                            }
-                                                        } else{
-                                                            hintMessage = "眨眨眼";
-                                                            eyesDetect_status = EYEDETECT_STATUS_READY;
-                                                        }
-                                                    } catch (JSONException e) {
-                                                        e.printStackTrace();
-                                                    }
-                                                }
-                                                @Override
-                                                public void onError(Exception e) {
-                                                    Log.v(TAG,"利用旷视API处理人脸数据异常");
-                                                }
-                                            });
-                                        }else{
-                                            Log.v(TAG,"获取Jpeg图片失败");
-                                        }
                                     }
                                     @Override
                                     public void onError(Throwable e) {
+                                        Log.v(TAG,"获取jpegData数据失败");
 
                                     }
                                     @Override
@@ -573,7 +575,10 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                 public void onNext(Boolean success) {
                                     String result = success ? "register success!" : "register failed!";
                                     Toast.makeText(AddFaceActivity.this, result, Toast.LENGTH_SHORT).show();
-                                    registerStatus = REGISTER_STATUS_DONE;
+                                    if(success){
+                                        startActivity(new Intent(AddFaceActivity.this,MainActivity.class));
+                                        registerStatus = REGISTER_STATUS_DONE;
+                                    }
                                 }
 
                                 @Override
@@ -755,5 +760,11 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
             case R.id.register_face:
                 register();
         }
+    }
+
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+        myhandle.removeCallbacksAndMessages(null);
     }
 }
