@@ -1,9 +1,12 @@
 package com.example.www24.facedetection.Activity;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -11,9 +14,11 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import com.example.www24.facedetection.Bean.User;
 import com.example.www24.facedetection.Common.Constants;
+import com.example.www24.facedetection.MyApplication;
 import com.example.www24.facedetection.R;
 import com.example.www24.facedetection.util.HttpUtil;
 import com.google.gson.Gson;
@@ -22,6 +27,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -46,6 +52,31 @@ public class LoginActivity extends AppCompatActivity{
 
     private SharedPreferences sp;
     private SharedPreferences.Editor editor;
+
+    private static final int ERROR_USERNAME = 1;
+    private static final int ERROR_PASSWORD = 2;
+
+    //Handler定义
+    private static class MyHandler extends Handler {
+        private WeakReference<Context> reference;
+        public MyHandler(Context context) {
+            reference = new WeakReference<>(context);
+        }
+        @Override
+        public void handleMessage(Message msg) {
+            LoginActivity activity = (LoginActivity) reference.get();
+            if(activity != null){
+                switch (msg.what){
+                    case ERROR_USERNAME :
+                        Toast.makeText(MyApplication.getContext(),"用户名不存在",Toast.LENGTH_SHORT).show();
+                        break;
+                    case ERROR_PASSWORD:
+                        Toast.makeText(MyApplication.getContext(),"密码错误",Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+    }
+    private MyHandler myhandle = new MyHandler(this);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -158,11 +189,6 @@ public class LoginActivity extends AppCompatActivity{
         user.setPassword(password);
         Log.v(TAG,gson.toJson(user));
 
-
-        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-        startActivity(intent);
-        finish();
-
         mLoginButton.setClickable(false);
         final ProgressDialog progress = new ProgressDialog(LoginActivity.this);
         progress.setMessage("正在登录中...");
@@ -188,18 +214,28 @@ public class LoginActivity extends AppCompatActivity{
                     Log.v(TAG,String.valueOf(result));
                     if(result == 1) {
                         editor.putBoolean("isLogined",true);
-                        editor.putString("name",username);
+                        editor.putString("name",jsonResult.getString("username"));
+                        editor.putInt("userId", jsonResult.getInt("userId"));
                         editor.apply();
                         //Toast.makeText(MyApplication.getContext(), "登陆成功", Toast.LENGTH_SHORT).show();
                         startActivity(new Intent(LoginActivity.this, MainActivity.class));
                         progress.dismiss();
                         finish();
                         Log.v(TAG,"登陆成功");
-                    } else
-                    {
+                    } else {
                         editor.putBoolean("isLogined",false);
                         editor.apply();
-                        //Toast.makeText(LoginActivity.this,"登陆失败",Toast.LENGTH_SHORT).show();
+                        Message msg = new Message();
+                        switch (jsonResult.getInt("error_code")){
+                            case 1:
+                                msg.what = ERROR_USERNAME;
+                                myhandle.sendMessage(msg);
+                                break;
+                            case 2:
+                                msg.what = ERROR_PASSWORD;
+                                myhandle.sendMessage(msg);
+                                break;
+                        }
                         mLoginButton.setClickable(true);
                         progress.dismiss();
                         Log.v(TAG,"登陆失败");
@@ -209,9 +245,5 @@ public class LoginActivity extends AppCompatActivity{
                 }
             }
         });
-
     }
-
-
-
 }

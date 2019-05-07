@@ -566,7 +566,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                 if (registerStatus == REGISTER_STATUS_READY && facePreviewInfoList != null && facePreviewInfoList.size() > 0) {
                     registerStatus = REGISTER_STATUS_PROCESSING;
                     Observable.create((ObservableOnSubscribe<Boolean>) emitter -> {
-                        boolean success = FaceServer.getInstance().register(AddFaceActivity.this, nv21.clone(), previewSize.width, previewSize.height, sp.getString("name","registered "));
+                        boolean success = FaceServer.getInstance().register(AddFaceActivity.this, nv21.clone(), previewSize.width, previewSize.height, sp.getString("name","registered "), sp.getInt("userId",0));
                         emitter.onNext(success);
                     })
                             .subscribeOn(Schedulers.computation())

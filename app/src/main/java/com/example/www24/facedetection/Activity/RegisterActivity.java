@@ -1,25 +1,34 @@
 package com.example.www24.facedetection.Activity;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import com.example.www24.facedetection.Bean.User;
 import com.example.www24.facedetection.Common.Constants;
+import com.example.www24.facedetection.MyApplication;
 import com.example.www24.facedetection.R;
 import com.example.www24.facedetection.util.HttpUtil;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
+
 
 public class RegisterActivity extends AppCompatActivity implements View.OnClickListener {
     private static final String TAG="RegisterActivity";
@@ -29,6 +38,28 @@ public class RegisterActivity extends AppCompatActivity implements View.OnClickL
     private EditText et_age;
     private EditText et_sex;
     private EditText et_mail;
+
+    private static final int ERROR_USERNAME = 1;
+
+    //Handler定义
+    private static class MyHandler extends Handler {
+        private WeakReference<Context> reference;
+        public MyHandler(Context context) {
+            reference = new WeakReference<>(context);
+        }
+        @Override
+        public void handleMessage(Message msg) {
+            RegisterActivity activity = (RegisterActivity) reference.get();
+            if(activity != null){
+                switch (msg.what){
+                    case ERROR_USERNAME :
+                        Toast.makeText(MyApplication.getContext(),"用户已存在",Toast.LENGTH_SHORT).show();
+                        break;
+                }
+            }
+        }
+    }
+    private MyHandler myhandle = new MyHandler(this);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,20 +97,28 @@ public class RegisterActivity extends AppCompatActivity implements View.OnClickL
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
-                String requestData = response.body().toString();
-
+                String requestData = response.body().string();
+                Log.v(TAG,requestData);
                 //解析从服务端接收到的数据
-                JsonObject jsonResult = new JsonObject().getAsJsonObject(requestData);
-                String result = jsonResult.get("result").toString();
-
-                if(result.equals('1')){
-                    startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
-                    finish();
-                }
-
-                else
-                {
-                    Log.v(TAG,"注册失败");
+                JSONObject jsonResult = null;
+                try {
+                    jsonResult = new JSONObject(requestData);
+                    int result = jsonResult.getInt("result");
+                    if(result == 1){
+                        startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
+                        finish();
+                    }
+                    else
+                    {
+                        if(jsonResult.getInt("error_code") == 1){
+                            Message msg = new Message();
+                            msg.what = ERROR_USERNAME;
+                            myhandle.sendMessage(msg);
+                        }
+                        Log.v(TAG,"注册失败");
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 }
             }
         });

@@ -14,8 +14,12 @@ import com.arcsoft.face.FaceEngine;
 import com.arcsoft.face.FaceFeature;
 import com.arcsoft.face.FaceInfo;
 import com.arcsoft.face.FaceSimilar;
+import com.example.www24.facedetection.Bean.Face;
+import com.example.www24.facedetection.Common.Constants;
 import com.example.www24.facedetection.Model.FaceRegisterInfo;
+import com.example.www24.facedetection.util.HttpUtil;
 import com.example.www24.facedetection.util.ImageUtil;
+import com.google.gson.Gson;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -23,8 +27,13 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Random;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
 
 /**
  * 人脸库操作类，包含注册和搜索
@@ -202,7 +211,7 @@ public class FaceServer {
      * @param name    保存的名字，可为空
      * @return 是否注册成功
      */
-    public boolean register(Context context, byte[] nv21, int width, int height, String name) {
+    public boolean register(Context context, byte[] nv21, int width, int height, String name, int userId) {
         synchronized (this) {
             if (faceEngine == null || context == null || nv21 == null || width % 4 != 0 || nv21.length != width * height * 3 / 2) {
                 return false;
@@ -289,6 +298,29 @@ public class FaceServer {
                             faceRegisterInfoList = new ArrayList<>();
                         }
                         faceRegisterInfoList.add(new FaceRegisterInfo(faceFeature.getFeatureData(), userName));
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            String faceFeatureToSQL = Base64.getEncoder().encodeToString(faceFeature.getFeatureData());
+                            Log.v(TAG,String.valueOf(faceFeatureToSQL.length()));
+                            Face face = new Face();
+                            face.setUserId(userId);
+                            face.setFaceFeature(faceFeatureToSQL);
+
+                            Gson gson = new Gson();
+
+                            HttpUtil.sendOkHttpRequest(Constants.SEVER_URL + "registerFaceFeature", gson.toJson(face), new Callback() {
+                                @Override
+                                public void onFailure(Call call, IOException e) {
+                                    Log.v(TAG,"上传人脸特征数据时网络请求失败");
+                                }
+
+                                @Override
+                                public void onResponse(Call call, Response response) throws IOException {
+                                    Log.v(TAG, "上传人脸特征数据成功");
+                                }
+                            });
+                        }
+
+
                         return true;
                     }
                 } catch (IOException e) {
