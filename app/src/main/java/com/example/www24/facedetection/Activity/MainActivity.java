@@ -2,15 +2,19 @@ package com.example.www24.facedetection.Activity;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.arcsoft.face.ErrorInfo;
@@ -35,36 +39,71 @@ public class MainActivity extends AppCompatActivity {
     };
     private Button add_face_data;
     private Button face_recognition;
+    private SharedPreferences sp;
+    private TextView topBar;
+    private TextView tabFirstPage;
+    private TextView tabMine;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        activeEngine();
-        findView();
-        onClick();
+        sp = getSharedPreferences("userInfo",MODE_PRIVATE);
+        Log.v(TAG,String.valueOf(sp.getBoolean("isLogined",false)));
+        if(sp.getBoolean("isLogined",false)){
+            activeEngine();
+            findView();
+            onClick();
+            replaceFragment(new FirstPageFragment());
+        }else{
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            finish();
+        }
     }
 
     private void findView() {
-        add_face_data = findViewById(R.id.add_face_data);
-        face_recognition = findViewById(R.id.face_recognition);
+        topBar = findViewById(R.id.txt_top);
+        tabFirstPage = findViewById(R.id.txt_firstpage);
+        tabMine = findViewById(R.id.txt_mine);
+        //ly_content = findViewById(R.id.fragment_container);
+
+    }
+
+    //重置所有文本的选中状态
+    public void selected(){
+        tabFirstPage.setSelected(false);
+        tabMine.setSelected(false);
+    }
+
+    private void replaceFragment(Fragment fragment) {
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.fragment_container, fragment);
+        transaction.commit();
+
     }
 
     private void onClick() {
-        add_face_data.setOnClickListener(new View.OnClickListener() {
+
+        tabFirstPage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //添加人脸数据
-                Log.v("Add_Face_ActivityLog","准备进入添加人脸activity");
-                startActivity(new Intent(MainActivity.this,AddFaceActivity.class));
+                topBar.setText("首页");
+                selected();
+                tabFirstPage.setSelected(true);
+                replaceFragment(new FirstPageFragment());
             }
         });
-        face_recognition.setOnClickListener(new View.OnClickListener() {
+
+        tabMine.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                //人脸识别
-                startActivity(new Intent(MainActivity.this,Recognition.class));
+                topBar.setText("我");
+                selected();
+                tabMine.setSelected(true);
+                Log.v(TAG,sp.getString("name","hello"));
+                replaceFragment(new MineFragment(sp.getString("name","hello")));
             }
         });
     }

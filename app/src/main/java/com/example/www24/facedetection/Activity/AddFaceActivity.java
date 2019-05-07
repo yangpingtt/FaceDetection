@@ -3,6 +3,7 @@ package com.example.www24.facedetection.Activity;
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
@@ -168,6 +169,8 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     public static final int FAIL = 1;
     public static final int SUCCESS = 2;
 
+    private SharedPreferences sp;
+
     //Handler定义
     private MyHandler myhandle = new MyHandler(this);
     private static class MyHandler extends Handler {
@@ -217,6 +220,8 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         compareResultList = new ArrayList<>();
         adapter = new ShowFaceInfoAdapter(compareResultList,this);
         recyclerShowFaceInfo.setAdapter(adapter);
+
+        sp = getSharedPreferences("userInfo",MODE_PRIVATE);
 
         //活体检测状态初始化
         initBehavorDetect();
@@ -557,10 +562,11 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                 }
 
 
+                //注册人脸
                 if (registerStatus == REGISTER_STATUS_READY && facePreviewInfoList != null && facePreviewInfoList.size() > 0) {
                     registerStatus = REGISTER_STATUS_PROCESSING;
                     Observable.create((ObservableOnSubscribe<Boolean>) emitter -> {
-                        boolean success = FaceServer.getInstance().register(AddFaceActivity.this, nv21.clone(), previewSize.width, previewSize.height, "registered " + faceHelper.getCurrentTrackId());
+                        boolean success = FaceServer.getInstance().register(AddFaceActivity.this, nv21.clone(), previewSize.width, previewSize.height, sp.getString("name","registered "));
                         emitter.onNext(success);
                     })
                             .subscribeOn(Schedulers.computation())
@@ -578,6 +584,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                     if(success){
                                         startActivity(new Intent(AddFaceActivity.this,MainActivity.class));
                                         registerStatus = REGISTER_STATUS_DONE;
+                                        finish();
                                     }
                                 }
 

@@ -2,6 +2,7 @@ package com.example.www24.facedetection.Activity;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
@@ -187,6 +188,7 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
         FaceServer.getInstance().init(this);
 
         previewView = findViewById(R.id.texture_preview_recog);
+
         //在布局结束后才做初始化操作
         previewView.getViewTreeObserver().addOnGlobalLayoutListener(this);
 
@@ -207,7 +209,6 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
         gestureDetect_status = GESTUREDETECT_STATUS_READY;
         mouthDetect_status = MOUTHDETECT_STATUS_READY;
         eyesDetect_status = EYEDETECT_STATUS_READY;
-
     }
 
 
@@ -297,7 +298,8 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
                     //Log.v(TAG, face3DAngleMap.get(requestId).toString());
 //                    Log.i(TAG, "onPreview: fr end = " + System.currentTimeMillis() + " trackId = " + requestId);
 
-                    if (gestureDetect_status == GESTUREDETECT_STATUS_DONE && mouthDetect_status == MOUTHDETECT_STATUS_DONR && eyesDetect_status == EYEDETECT_STATUS_DONE) {
+                    if (gestureDetect_status == GESTUREDETECT_STATUS_DONE && mouthDetect_status == MOUTHDETECT_STATUS_DONR
+                            && eyesDetect_status == EYEDETECT_STATUS_DONE) {
                         //活体检测通过，搜索特征
                         if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
                             Log.v(TAG, ".........活体检测成功");
@@ -682,6 +684,8 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
                             }
                             requestFeatureStatusMap.put(requestId, RequestFeatureStatus.SUCCEED);
                             faceHelper.addName(requestId, compareResult.getUserName());
+                            startActivity(new Intent(Recognition.this, RecognitionOK.class));
+                            finish();
 
                         } else {
                             requestFeatureStatusMap.put(requestId, RequestFeatureStatus.FAILED);

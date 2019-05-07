@@ -12,4 +12,6 @@
     <string name="registering_please_wait">注册中，请稍等</string>
     <string name="active_engine">激活引擎</string>
     <string name="permission_denied">权限被拒绝！</string>
+    <string name="default_username">Hello</string>
+    <string name="login_exit">退出登陆</string>
 </resources>

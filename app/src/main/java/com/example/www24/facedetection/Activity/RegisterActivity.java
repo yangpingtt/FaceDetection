@@ -8,21 +8,21 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-import com.example.www24.facedetection.Common.Constants;
 import com.example.www24.facedetection.Bean.User;
+import com.example.www24.facedetection.Common.Constants;
 import com.example.www24.facedetection.R;
+import com.example.www24.facedetection.util.HttpUtil;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
 
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
+import okhttp3.Call;
+import okhttp3.Callback;
 import okhttp3.Response;
 
 public class RegisterActivity extends AppCompatActivity implements View.OnClickListener {
+    private static final String TAG="RegisterActivity";
 
     private EditText et_name;
     private EditText et_password;
@@ -56,33 +56,32 @@ public class RegisterActivity extends AppCompatActivity implements View.OnClickL
         user.setMail(et_mail.getText().toString());
 
         Gson gson = new Gson();
-        OkHttpClient client = new OkHttpClient();
-
-        RequestBody requestBody = RequestBody.create(MediaType.parse("application/json; charset=utf-8"), gson.toJson(user));
-
-        Request request = new Request.Builder()
-                .url(Constants.SEVER_URL)
-                .post(requestBody)
-                .build();
-        Response response = null;
-        try {
-            response = client.newCall(request).execute();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        String requestData = response.body().toString();
 
 
-        //解析从服务端接收到的数据
-        JsonObject jsonResult = new JsonObject().getAsJsonObject(requestData);
-        String result = jsonResult.get("result").toString();
+        HttpUtil.sendOkHttpRequest(Constants.SEVER_URL + "register", gson.toJson(user), new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.v(TAG,"OkHttp访问失败");
+            }
 
-        if(result.equals('1'))
-            startActivity(new Intent(RegisterActivity.this,MainActivity.class));
-        else
-        {
-            Log.v("msg","Login");
-            //
-        }
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String requestData = response.body().toString();
+
+                //解析从服务端接收到的数据
+                JsonObject jsonResult = new JsonObject().getAsJsonObject(requestData);
+                String result = jsonResult.get("result").toString();
+
+                if(result.equals('1')){
+                    startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
+                    finish();
+                }
+
+                else
+                {
+                    Log.v(TAG,"注册失败");
+                }
+            }
+        });
     }
 }
