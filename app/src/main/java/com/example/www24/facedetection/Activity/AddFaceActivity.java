@@ -204,7 +204,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         // Activity启动后就锁定为启动时的方向
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
         //本地人脸库初始化
-        FaceServer.getInstance().init(this);
+        FaceServer.getInstance().init(this, sp.getInt("userId",0));
 
         previewView = findViewById(R.id.texture_preview);
         //在布局结束后才做初始化操作

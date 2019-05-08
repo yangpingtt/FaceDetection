@@ -3,6 +3,7 @@ package com.example.www24.facedetection.Activity;
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
@@ -147,6 +148,8 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
     private static final float SIMILAR_THRESHOLD = 0.8F;
     private FaceEngine faceEngine;
 
+    private SharedPreferences sp;
+
 
     public static final int FAIL = 1;
     public static final int SUCCESS = 2;
@@ -179,13 +182,15 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
         setContentView(R.layout.activity_recognition);
         Log.v("Add_Face_ActivityLog","111222");
 
+        sp = getSharedPreferences("userInfo", MODE_PRIVATE);
+
         //保持亮屏
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         // Activity启动后就锁定为启动时的方向
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
         //本地人脸库初始化
-        FaceServer.getInstance().init(this);
+        FaceServer.getInstance().init(this, sp.getInt("userId", 0));
 
         previewView = findViewById(R.id.texture_preview_recog);
 

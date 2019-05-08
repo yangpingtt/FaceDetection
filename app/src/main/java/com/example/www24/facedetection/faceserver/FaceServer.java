@@ -21,6 +21,9 @@ import com.example.www24.facedetection.util.HttpUtil;
 import com.example.www24.facedetection.util.ImageUtil;
 import com.google.gson.Gson;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -70,13 +73,13 @@ public class FaceServer {
      * @param context 上下文对象
      * @return 是否初始化成功
      */
-    public boolean init(Context context) {
+    public boolean init(Context context, int userId) {
         synchronized (this) {
             if (faceEngine == null && context != null) {
                 faceEngine = new FaceEngine();
                 int engineCode = faceEngine.init(context, FaceEngine.ASF_DETECT_MODE_IMAGE, FaceEngine.ASF_OP_0_HIGHER_EXT, 16, 1, FaceEngine.ASF_FACE_RECOGNITION | FaceEngine.ASF_FACE_DETECT);
                 if (engineCode == ErrorInfo.MOK) {
-                    initFaceList(context);
+                    initFaceList(context, userId);
                     return true;
                 } else {
                     faceEngine = null;
@@ -109,32 +112,92 @@ public class FaceServer {
      *
      * @param context 上下文对象
      */
-    private void initFaceList(Context context) {
+    private void initFaceList(Context context, int userId) {
         synchronized (this) {
             if (ROOT_PATH == null) {
                 ROOT_PATH = context.getFilesDir().getAbsolutePath();
             }
             File featureDir = new File(ROOT_PATH + File.separator + SAVE_FEATURE_DIR);
             if (!featureDir.exists() || !featureDir.isDirectory()) {
-                return;
-            }
-            File[] featureFiles = featureDir.listFiles();
-            if (featureFiles == null || featureFiles.length == 0) {
-                return;
-            }
-            faceRegisterInfoList = new ArrayList<>();
-            for (File featureFile : featureFiles) {
-                try {
-                    FileInputStream fis = new FileInputStream(featureFile);
-                    byte[] feature = new byte[FaceFeature.FEATURE_SIZE];
-                    fis.read(feature);
-                    fis.close();
-                    faceRegisterInfoList.add(new FaceRegisterInfo(feature, featureFile.getName()));
-                } catch (IOException e) {
-                    e.printStackTrace();
+                initFaceFeatureFromServer(context, userId);
+            }else{
+                File[] featureFiles = featureDir.listFiles();
+                if (featureFiles == null || featureFiles.length == 0) {
+                    initFaceFeatureFromServer(context, userId);
+                }else {
+                    faceRegisterInfoList = new ArrayList<>();
+                    for (File featureFile : featureFiles) {
+                        try {
+                            FileInputStream fis = new FileInputStream(featureFile);
+                            byte[] feature = new byte[FaceFeature.FEATURE_SIZE];
+                            fis.read(feature);
+                            fis.close();
+                            faceRegisterInfoList.add(new FaceRegisterInfo(feature, featureFile.getName()));
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
             }
         }
+    }
+
+
+    /**
+     * 从服务器初始化用户人脸特征
+     * @param userId
+     */
+    private void initFaceFeatureFromServer(Context context, int userId) {
+        Face face = new Face();
+        face.setUserId(userId);
+
+        Gson gson = new Gson();
+
+        HttpUtil.sendOkHttpRequest(Constants.SEVER_URL + "initFaceFeature", gson.toJson(face), new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                //从服务器初始化人脸特征数据失败
+                Log.v(TAG, "从服务器初始化人脸特征数据失败");
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                String requestData = response.body().string();
+
+                try {
+                    JSONObject jsonObject = new JSONObject(requestData);
+                    int result = jsonObject.getInt("result");
+                    if(result == 1){
+                        String faceFeaturestring = jsonObject.getString("faceFeature");
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            byte[] faceFeature = Base64.getDecoder().decode(faceFeaturestring);
+                            faceRegisterInfoList = new ArrayList<>();
+                            faceRegisterInfoList.add(new FaceRegisterInfo(faceFeature, jsonObject.getString("username")));
+                            Log.v(TAG,"从服务器初始化人脸数据成功");
+
+                            //将人脸数据存储至本地
+                            boolean dirExists = true;
+                            //特征存储的文件夹
+                            File featureDir = new File(ROOT_PATH + File.separator + SAVE_FEATURE_DIR);
+                            if (!featureDir.exists()) {
+                                dirExists = featureDir.mkdirs();
+                            }
+                            if (!dirExists) {
+                                Log.v(TAG,"从服务器已获取到人脸数据特征,但本地文件夹不存在");
+                            }else {
+                                FileOutputStream fosFeature = new FileOutputStream(featureDir + File.separator + jsonObject.getString("username"));
+                                fosFeature.write(faceFeature);
+                                fosFeature.close();
+                                Log.v(TAG,"从服务器已获取到人脸数据特征，并存入本地文件中");
+                            }
+                        }
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
     }
 
     public int getFaceNumber(Context context) {
@@ -319,8 +382,6 @@ public class FaceServer {
                                 }
                             });
                         }
-
-
                         return true;
                     }
                 } catch (IOException e) {
