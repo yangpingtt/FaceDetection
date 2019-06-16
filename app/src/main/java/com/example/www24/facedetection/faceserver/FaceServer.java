@@ -275,8 +275,10 @@ public class FaceServer {
      * @return 是否注册成功
      */
     public boolean register(Context context, byte[] nv21, int width, int height, String name, int userId) {
+        Log.v(TAG, "进入注册");
         synchronized (this) {
             if (faceEngine == null || context == null || nv21 == null || width % 4 != 0 || nv21.length != width * height * 3 / 2) {
+                Log.v(TAG,"注册条件不满足");
                 return false;
             }
 
@@ -290,6 +292,7 @@ public class FaceServer {
                 dirExists = featureDir.mkdirs();
             }
             if (!dirExists) {
+                Log.v(TAG, "创建特征文件夹失败");
                 return false;
             }
             //图片存储的文件夹
@@ -298,20 +301,47 @@ public class FaceServer {
                 dirExists = imgDir.mkdirs();
             }
             if (!dirExists) {
+                Log.v(TAG, "创建图片文件夹失败");
                 return false;
             }
             //1.人脸检测
             List<FaceInfo> faceInfoList = new ArrayList<>();
             int code = faceEngine.detectFaces(nv21, width, height, FaceEngine.CP_PAF_NV21, faceInfoList);
+
+            Log.v(TAG, "人脸检测完成，code="+ code);
             if (code == ErrorInfo.MOK && faceInfoList.size() > 0) {
                 FaceFeature faceFeature = new FaceFeature();
 
+
+                try {
+                    File filedir = new File(Environment.getExternalStorageDirectory().getPath() + File.separator + "1111111111" );
+                    if(!filedir.exists()){
+                        filedir.mkdirs();
+                    }
+                    YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
+
+                    File file = new File( filedir + File.separator+ getRandomString(10) + IMG_SUFFIX);
+                    FileOutputStream fosImage = new FileOutputStream(file);
+
+                    yuvImage.compressToJpeg(new Rect(0,0,width, height),100, fosImage);
+                    fosImage.close();
+                    //Log.v(TAG,jpegData);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+
+
+                Log.v(TAG, "进入提取特征阶段");
                 //2.特征提取
                 code = faceEngine.extractFaceFeature(nv21, width, height, FaceEngine.CP_PAF_NV21, faceInfoList.get(0), faceFeature);
+                Log.v(TAG, "特征提取完成，code="+ code);
                 String userName = name == null ? String.valueOf(System.currentTimeMillis()) : name;
                 try {
                     //3.保存注册结果（注册图、特征数据）
                     if (code == ErrorInfo.MOK) {
+
+                        Log.v(TAG, "保存注册结果图");
                         YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
                         //为了美观，扩大rect截取注册图
                         Rect cropRect = getBestRect(width, height, faceInfoList.get(0).getRect());
@@ -356,12 +386,16 @@ public class FaceServer {
                         fosFeature.write(faceFeature.getFeatureData());
                         fosFeature.close();
 
+                        Log.v(TAG, "本地保存特征成功");
+
                         //内存中的数据同步
                         if (faceRegisterInfoList == null) {
                             faceRegisterInfoList = new ArrayList<>();
                         }
                         faceRegisterInfoList.add(new FaceRegisterInfo(faceFeature.getFeatureData(), userName));
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+
+                            Log.v(TAG, "向服务器上传人脸特征");
                             String faceFeatureToSQL = Base64.getEncoder().encodeToString(faceFeature.getFeatureData());
                             Log.v(TAG,String.valueOf(faceFeatureToSQL.length()));
                             Face face = new Face();
@@ -402,68 +436,56 @@ public class FaceServer {
             if(faceEngine == null|| nv21 == null){
                 return null;
             }
-            //人脸检测
-            //图片存储的文件夹
-            boolean dirExists = true;
-            File imgDir = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "111111111testFaceDetection");
-            if (!imgDir.exists()) {
-                dirExists = imgDir.mkdirs();
-            }
-            if (!dirExists) {
-                return null;
-            }
             List<FaceInfo> faceInfoList = new ArrayList<>();
-                int code = faceEngine.detectFaces(nv21, width, height, FaceEngine.CP_PAF_NV21, faceInfoList);
-                if (code == ErrorInfo.MOK && faceInfoList.size() > 0) {
-                    try{
-                        YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
-                        //为了美观，扩大rect截取注册图
-                        Rect cropRect = getBestRect(width, height, faceInfoList.get(0).getRect());
-                        if (cropRect == null) {
-                            return null;
+            int code = faceEngine.detectFaces(nv21, width, height, FaceEngine.CP_PAF_NV21, faceInfoList);
+            if (code == ErrorInfo.MOK && faceInfoList.size() > 0) {
+                try{
+                    YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
+                    Rect cropRect = getBestRect(width, height, faceInfoList.get(0).getRect());
+                    if (cropRect == null) {
+                        return null;
+                    }
+                    ByteArrayOutputStream fosImage = new ByteArrayOutputStream();
+                    yuvImage.compressToJpeg(cropRect, 100, fosImage);
+                    byte[] jpegData = fosImage.toByteArray();
+                    fosImage.close();
+                    Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData,0,jpegData.length);
+
+                    //判断人脸旋转角度，若不为0度则旋转注册图
+                    boolean needAdjust = false;
+                    if (bitmap != null) {
+                        switch (faceInfoList.get(0).getOrient()) {
+                            case FaceEngine.ASF_OC_0:
+                                break;
+                            case FaceEngine.ASF_OC_90:
+                                bitmap = ImageUtil.getRotateBitmap(bitmap, 90);
+                                needAdjust = true;
+                                break;
+                            case FaceEngine.ASF_OC_180:
+                                bitmap = ImageUtil.getRotateBitmap(bitmap, 180);
+                                needAdjust = true;
+                                break;
+                            case FaceEngine.ASF_OC_270:
+                                bitmap = ImageUtil.getRotateBitmap(bitmap, 270);
+                                needAdjust = true;
+                                break;
+                            default:
+                                break;
                         }
-                        ByteArrayOutputStream fosImage = new ByteArrayOutputStream();
-                        yuvImage.compressToJpeg(cropRect, 100, fosImage);
-                        byte[] jpegData = fosImage.toByteArray();
-                        fosImage.close();
-                        Bitmap bitmap = BitmapFactory.decodeByteArray(jpegData,0,jpegData.length);
+                    }
 
+                    if(needAdjust){
+                        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                        bitmap.compress(Bitmap.CompressFormat.JPEG,100,byteArrayOutputStream);
+                        jpegData = byteArrayOutputStream.toByteArray();
+                        byteArrayOutputStream.close();
+                    }
 
-                        //判断人脸旋转角度，若不为0度则旋转注册图
-                        boolean needAdjust = false;
-                        if (bitmap != null) {
-                            switch (faceInfoList.get(0).getOrient()) {
-                                case FaceEngine.ASF_OC_0:
-                                    break;
-                                case FaceEngine.ASF_OC_90:
-                                    bitmap = ImageUtil.getRotateBitmap(bitmap, 90);
-                                    needAdjust = true;
-                                    break;
-                                case FaceEngine.ASF_OC_180:
-                                    bitmap = ImageUtil.getRotateBitmap(bitmap, 180);
-                                    needAdjust = true;
-                                    break;
-                                case FaceEngine.ASF_OC_270:
-                                    bitmap = ImageUtil.getRotateBitmap(bitmap, 270);
-                                    needAdjust = true;
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
+                    if(bitmap != null && !bitmap.isRecycled()){
+                        bitmap.recycle();
+                    }
 
-                        if(needAdjust){
-                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                            bitmap.compress(Bitmap.CompressFormat.JPEG,100,byteArrayOutputStream);
-                            jpegData = byteArrayOutputStream.toByteArray();
-                            byteArrayOutputStream.close();
-                        }
-
-                        if(bitmap != null && !bitmap.isRecycled()){
-                            bitmap.recycle();
-                        }
-
-                        //测试，存储从前置摄像头获取的图片
+                    //测试，存储从前置摄像头获取的图片
 //                        try {
 //                            File file = new File(imgDir + File.separator + getRandomString(10) + IMG_SUFFIX);
 //                            FileOutputStream fos = new FileOutputStream(file);
@@ -475,10 +497,10 @@ public class FaceServer {
 //                            e.printStackTrace();
 //                        }
 
-                        return jpegData;
-                    }catch (Exception e){
-                        e.printStackTrace();
-                    }
+                    return jpegData;
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
             }
             return null;
         }

@@ -19,6 +19,7 @@ public class User implements Serializable {
     private int age;
     private char sex;
     private String mail;
+    private String isAdmin;
 
     public int getUserId() {
         return userId;
@@ -67,4 +68,8 @@ public class User implements Serializable {
     public void setMail(String mail) {
         this.mail = mail;
     }
+
+    public String getIsAdmin() { return isAdmin; }
+
+    public void setIsAdmin(String isAdmin) { this.isAdmin = isAdmin; }
 }

@@ -170,6 +170,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
     public static final int SUCCESS = 2;
 
     private SharedPreferences sp;
+    private Gson gson = new Gson();
 
     //Handler定义
     private MyHandler myhandle = new MyHandler(this);
@@ -200,6 +201,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         Log.v(TAG,"进入添加人脸activity");
         //保持亮屏
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        sp = getSharedPreferences("userInfo",MODE_PRIVATE);
 
         // Activity启动后就锁定为启动时的方向
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
@@ -221,7 +223,6 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
         adapter = new ShowFaceInfoAdapter(compareResultList,this);
         recyclerShowFaceInfo.setAdapter(adapter);
 
-        sp = getSharedPreferences("userInfo",MODE_PRIVATE);
 
         //活体检测状态初始化
         initBehavorDetect();
@@ -282,15 +283,13 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                     //Log.v(TAG, face3DAngleMap.get(requestId).toString());
 //                    Log.i(TAG, "onPreview: fr end = " + System.currentTimeMillis() + " trackId = " + requestId);
 
-                    if (gestureDetect_status == GESTUREDETECT_STATUS_DONE && mouthDetect_status == MOUTHDETECT_STATUS_DONR && eyesDetect_status == EYEDETECT_STATUS_DONE) {
-                        //活体检测通过，搜索特征
+                    if (gestureDetect_status == GESTUREDETECT_STATUS_DONE && mouthDetect_status == MOUTHDETECT_STATUS_DONR
+                            && eyesDetect_status == EYEDETECT_STATUS_DONE) {
+                        //活体检测通过
                         if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.ALIVE) {
                             Log.v(TAG, ".........活体检测成功");
                             hintMessage = "活体检测成功";
-//                            Message msg = new Message();
-//                            msg.what = SUCCESS;
-//                            myhandle.sendMessage(msg);
-                            registerStatus = REGISTER_STATUS_READY;
+                            register();
                         }
                         //活体检测未出结果，延迟100ms再执行该函数
                         else if (livenessMap.get(requestId) != null && livenessMap.get(requestId) == LivenessInfo.UNKNOWN) {
@@ -411,6 +410,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                 }
                                 @Override
                                 public void onNext(byte[] jpegData) {
+                                    Log.v(TAG,"获取图片成功，准备上传至旷视服务器");
                                     String url = "https://api-cn.faceplusplus.com/facepp/v3/detect";
                                     HashMap<String, String> map = new HashMap<>();
                                     HashMap<String, byte[]> byteMap = new HashMap<>();
@@ -430,7 +430,6 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                                 Log.v(TAG,jsonResult.toString());
                                                 String face = jsonResult.get("faces").toString();
                                                 if(!face.equals("[]")){
-                                                    Gson gson = new Gson();
                                                     ResultFromFacePP resultFromFacePP = gson.fromJson(String.valueOf(jsonResult),ResultFromFacePP.class);
                                                     List<ResultFromFacePP.FacesBean> faces = resultFromFacePP.getFaces();
                                                     MouthstatusBean mouthstatus = faces.get(0).getAttributes().getMouthstatus();
@@ -514,7 +513,6 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                                     Log.v(TAG,jsonResult.toString());
                                                     String face = jsonResult.get("faces").toString();
                                                     if(!face.equals("[]")){
-                                                        Gson gson = new Gson();
                                                         ResultFromFacePP resultFromFacePP = gson.fromJson(String.valueOf(jsonResult),ResultFromFacePP.class);
                                                         List<ResultFromFacePP.FacesBean> faces = resultFromFacePP.getFaces();
                                                         EyestatusBean eyestatus = faces.get(0).getAttributes().getEyestatus();
@@ -564,6 +562,7 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
 
                 //注册人脸
                 if (registerStatus == REGISTER_STATUS_READY && facePreviewInfoList != null && facePreviewInfoList.size() > 0) {
+                    Log.v(TAG, "进入注册");
                     registerStatus = REGISTER_STATUS_PROCESSING;
                     Observable.create((ObservableOnSubscribe<Boolean>) emitter -> {
                         boolean success = FaceServer.getInstance().register(AddFaceActivity.this, nv21.clone(), previewSize.width, previewSize.height, sp.getString("name","registered "), sp.getInt("userId",0));
@@ -582,15 +581,15 @@ public class AddFaceActivity extends AppCompatActivity implements ViewTreeObserv
                                     String result = success ? "register success!" : "register failed!";
                                     Toast.makeText(AddFaceActivity.this, result, Toast.LENGTH_SHORT).show();
                                     if(success){
-                                        startActivity(new Intent(AddFaceActivity.this,MainActivity.class));
                                         registerStatus = REGISTER_STATUS_DONE;
+                                        startActivity(new Intent(AddFaceActivity.this,MainActivity.class));
                                         finish();
                                     }
                                 }
 
                                 @Override
                                 public void onError(Throwable e) {
-                                    Toast.makeText(AddFaceActivity.this, "register failed!", Toast.LENGTH_SHORT).show();
+                                    //Toast.makeText(AddFaceActivity.this, "register failed!", Toast.LENGTH_SHORT).show();
                                     registerStatus = REGISTER_STATUS_DONE;
                                 }
 

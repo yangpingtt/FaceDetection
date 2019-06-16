@@ -85,6 +85,7 @@ public class RegisterActivity extends AppCompatActivity implements View.OnClickL
         user.setAge(Integer.parseInt(et_age.getText().toString()));
         user.setSex(et_sex.getText().toString().toCharArray()[0]);
         user.setMail(et_mail.getText().toString());
+        user.setIsAdmin("N");
 
         Gson gson = new Gson();
 

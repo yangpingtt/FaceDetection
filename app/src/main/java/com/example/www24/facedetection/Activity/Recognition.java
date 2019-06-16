@@ -149,6 +149,7 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
     private FaceEngine faceEngine;
 
     private SharedPreferences sp;
+    private Gson gson = new Gson();
 
 
     public static final int FAIL = 1;
@@ -376,7 +377,8 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
 
 
                 //摇头抬头检测
-                if(gestureDetect_status == GESTUREDETECT_STATUS_READY && facePreviewInfoList != null && facePreviewInfoList.size() > 0 ){
+                if(gestureDetect_status == GESTUREDETECT_STATUS_READY
+                        && facePreviewInfoList != null && facePreviewInfoList.size() > 0 ){
                     if(!behavorDectect[0]){
                         hintMessage = "请向左转头";
                         Log.v(TAG,".........请左摇头");
@@ -398,13 +400,17 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
                     if(!behavorDectect[0] && facePreviewInfoList.get(0).getFace3DAngle().getYaw() > 10){
                         behavorDectect[0] = true;
                     }
-                    if(behavorDectect[0] && !behavorDectect[1] && facePreviewInfoList.get(0).getFace3DAngle().getYaw() < -10){
+                    if(behavorDectect[0] && !behavorDectect[1] &&
+                            facePreviewInfoList.get(0).getFace3DAngle().getYaw() < -10){
                         behavorDectect[1] = true;
                     }
-                    if(behavorDectect[0] && behavorDectect[1] && !behavorDectect[2] && facePreviewInfoList.get(0).getFace3DAngle().getPitch() > 10){
+                    if(behavorDectect[0] && behavorDectect[1] &&
+                            !behavorDectect[2] && facePreviewInfoList.get(0).getFace3DAngle().getPitch() > 10){
                         behavorDectect[2] = true;
                     }
-                    if(behavorDectect[0] && behavorDectect[1] && behavorDectect[2] && !behavorDectect[3] && facePreviewInfoList.get(0).getFace3DAngle().getPitch() < -10){
+                    if(behavorDectect[0] && behavorDectect[1] &&
+                            behavorDectect[2] && !behavorDectect[3] &&
+                            facePreviewInfoList.get(0).getFace3DAngle().getPitch() < -10){
                         behavorDectect[3] = true;
                     }
                 }
@@ -451,7 +457,6 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
                                                 Log.v(TAG,jsonResult.toString());
                                                 String face = jsonResult.get("faces").toString();
                                                 if(!face.equals("[]")){
-                                                    Gson gson = new Gson();
                                                     ResultFromFacePP resultFromFacePP = gson.fromJson(String.valueOf(jsonResult),ResultFromFacePP.class);
                                                     List<ResultFromFacePP.FacesBean> faces = resultFromFacePP.getFaces();
                                                     MouthstatusBean mouthstatus = faces.get(0).getAttributes().getMouthstatus();
@@ -535,7 +540,6 @@ public class Recognition extends AppCompatActivity implements ViewTreeObserver.O
                                                     Log.v(TAG,jsonResult.toString());
                                                     String face = jsonResult.get("faces").toString();
                                                     if(!face.equals("[]")){
-                                                        Gson gson = new Gson();
                                                         ResultFromFacePP resultFromFacePP = gson.fromJson(String.valueOf(jsonResult),ResultFromFacePP.class);
                                                         List<ResultFromFacePP.FacesBean> faces = resultFromFacePP.getFaces();
                                                         EyestatusBean eyestatus = faces.get(0).getAttributes().getEyestatus();
